@@ -1,0 +1,6 @@
+## Interface: 40000
+## Title: Spellgarden
+## Author: d87
+## Notes: Castbars
+castbar.lua
+badspells.lua
