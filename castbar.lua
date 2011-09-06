@@ -6,14 +6,15 @@ Spellgarden:SetScript("OnEvent",function(self)
     --player.spellText:SetAlpha(0.2)
     player.spellText:Hide()
     player.timeText:Hide()
-    player:SetPoint("BOTTOMRIGHT",MultiBarBottomLeftButton12,"TOPRIGHT",-4, 44)
+    player:SetPoint("BOTTOMRIGHT",MultiBarBottomLeftButton12,"TOPRIGHT",-4, 48)
     CastingBarFrame:UnregisterAllEvents()
     SpellgardenPlayer = player
     
     local target = Spellgarden:SpawnCastBar("target",200,25)
     target:RegisterEvent("PLAYER_TARGET_CHANGED")
     Spellgarden:AddMore(target)
-    target:SetPoint("CENTER",UIParent,"CENTER", -200, 40)
+    target:SetPoint("CENTER",UIParent,"CENTER",200,-120)
+    SpellgardenTarget = target
     CastingBarFrame:UnregisterAllEvents()
     
     local focus = Spellgarden:SpawnCastBar("focus",200,25)
@@ -39,7 +40,7 @@ function Spellgarden.UNIT_SPELLCAST_START(self,event,unit,spell)
     if unit ~= self.unit then return end
     local name, subText, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
     self.inverted = false
-    self:UpdateCastingInfo(name,texture,startTime,endTime,castID)
+    self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
 Spellgarden.UNIT_SPELLCAST_DELAYED = Spellgarden.UNIT_SPELLCAST_START
 function Spellgarden.UNIT_SPELLCAST_CHANNEL_START(self,event,unit,spell)
@@ -68,6 +69,7 @@ function Spellgarden.UNIT_SPELLCAST_INTERRUPTIBLE(self,event,unit)
     self.shield:Hide()
 end
 function Spellgarden.UNIT_SPELLCAST_NOT_INTERRUPTIBLE(self,event,unit)
+    print(event, unit, self.unit)
     if unit ~= self.unit then return end
     self.shield:Show()
 end
@@ -79,6 +81,32 @@ function Spellgarden.PLAYER_TARGET_CHANGED(self,event)
     Spellgarden.UNIT_SPELLCAST_STOP(self,event,"target")
 end
 
+
+local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, notInterruptible)
+        if not startTime then return end
+        self.castID = castID
+        self.startTime = startTime / 1000
+        self.endTime = endTime / 1000
+        self.bar:SetMinMaxValues(self.startTime,self.endTime)
+        self.icon:SetTexture(texture)
+        self.spellText:SetText(name)
+        if self.unit ~= "player" and Spellgarden.badSpells[name] then
+            if self.shine:IsPlaying() then self.shine:Stop() end
+            self.shine:Play()
+        end
+        local color = coloredSpells[name] or (self.inverted and defaultChannelColor or defaultCastColor)
+        self.bar:SetStatusBarColor(unpack(color))
+        self.bar.bg:SetVertexColor(color[1]*.5,color[2]*.5,color[3]*.5)
+        self:Show()
+
+        if self.shield then
+            if notInterruptible then
+                self.shield:Show()
+            else
+                self.shield:Hide()
+            end
+        end
+    end
 function Spellgarden.SpawnCastBar(self,unit,width,height)
     local f = CreateFrame("Frame",nil,UIParent)
     f.unit = unit
@@ -97,22 +125,7 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
     f:SetScript("OnEvent", function(self, event, ...)
         Spellgarden[event](self, event, ...)
     end)
-    f.UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID)
-        self.castID = castID
-        self.startTime = startTime / 1000
-        self.endTime = endTime / 1000
-        self.bar:SetMinMaxValues(self.startTime,self.endTime)
-        self.icon:SetTexture(texture)
-        self.spellText:SetText(name)
-        if self.unit ~= "player" and Spellgarden.badSpells[name] then
-            if self.shine:IsPlaying() then self.shine:Stop() end
-            self.shine:Play()
-        end
-        local color = coloredSpells[name] or (self.inverted and defaultChannelColor or defaultCastColor)
-        self.bar:SetStatusBarColor(unpack(color))
-        self.bar.bg:SetVertexColor(color[1]*.5,color[2]*.5,color[3]*.5)
-        self:Show()
-    end
+    f.UpdateCastingInfo = UpdateCastingInfo
     
     return f
 end
