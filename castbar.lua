@@ -9,7 +9,7 @@ Spellgarden:SetScript("OnEvent",function(self)
     player:SetPoint("BOTTOMRIGHT",MultiBarBottomLeftButton12,"TOPRIGHT",-4, 48)
     CastingBarFrame:UnregisterAllEvents()
     SpellgardenPlayer = player
-    
+
     local target = Spellgarden:SpawnCastBar("target",200,25)
     target:RegisterEvent("PLAYER_TARGET_CHANGED")
     Spellgarden:AddMore(target)
@@ -18,7 +18,7 @@ Spellgarden:SetScript("OnEvent",function(self)
     -- target:SetPoint("CENTER",UIParent,"CENTER",400,0)
     SpellgardenTarget = target
     CastingBarFrame:UnregisterAllEvents()
-    
+
     local focus = Spellgarden:SpawnCastBar("focus",200,25)
     Spellgarden:AddMore(focus)
     if oUF_Focus then focus:SetPoint("TOPRIGHT",oUF_Focus,"BOTTOMRIGHT", 0,-5)
@@ -71,7 +71,6 @@ function Spellgarden.UNIT_SPELLCAST_INTERRUPTIBLE(self,event,unit)
     self.shield:Hide()
 end
 function Spellgarden.UNIT_SPELLCAST_NOT_INTERRUPTIBLE(self,event,unit)
-    print(event, unit, self.unit)
     if unit ~= self.unit then return end
     self.shield:Show()
 end
@@ -111,13 +110,13 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
 function Spellgarden.SpawnCastBar(self,unit,width,height)
     local f = CreateFrame("Frame",nil,UIParent)
     f.unit = unit
-    
-    if unit == "player" then
-        self:MakeDoubleCastbar(f,width,height)
-    else
+
+    -- if unit == "player" then
+        -- self:MakeDoubleCastbar(f,width,height)
+    -- else
         self:FillFrame(f,width,height)
-    end
-    
+    -- end
+
     f:Hide()
     f:RegisterEvent("UNIT_SPELLCAST_START")
     f:RegisterEvent("UNIT_SPELLCAST_DELAYED")
@@ -131,7 +130,7 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
         Spellgarden[event](self, event, ...)
     end)
     f.UpdateCastingInfo = UpdateCastingInfo
-    
+
     return f
 end
 
@@ -155,18 +154,18 @@ Spellgarden.AddMore = function(self, f)
     at:SetHeight(height*1.8)
     at:SetPoint("CENTER",f.icon,"CENTER",0,0)
     at:SetAlpha(0)
-    
+
     local sag = at:CreateAnimationGroup()
     local sa1 = sag:CreateAnimation("Alpha")
-    sa1:SetChange(1)
+    sa1:SetToAlpha(1)
     sa1:SetDuration(0.3)
     sa1:SetOrder(1)
     local sa2 = sag:CreateAnimation("Alpha")
-    sa2:SetChange(-1)
+    sa2:SetToAlpha(0)
     sa2:SetDuration(0.5)
     sa2:SetSmoothing("OUT")
     sa2:SetOrder(2)
-    
+
     f.shine = sag
 end
 
@@ -175,13 +174,13 @@ Spellgarden.FillFrame = function(self, f,width,height)
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
         insets = {left = -2, right = -2, top = -2, bottom = -2},
     }
-    
+
     f:SetWidth(width)
     f:SetHeight(height)
-    
+
     f:SetBackdrop(backdrop)
 	f:SetBackdropColor(0, 0, 0, 0.7)
-    
+
     local ic = CreateFrame("Frame",nil,f)
     ic:SetPoint("TOPLEFT",f,"TOPLEFT", 0, 0)
     ic:SetWidth(height)
@@ -190,14 +189,14 @@ Spellgarden.FillFrame = function(self, f,width,height)
     ict:SetTexCoord(.07, .93, .07, .93)
     ict:SetAllPoints(ic)
     f.icon = ict
-    
+
     f.stacktext = ic:CreateFontString(nil, "OVERLAY");
-    f.stacktext:SetFont("Fonts\\FRIZQT__.TTF",10,"OUTLINE")
+    -- f.stacktext:SetFont("Fonts\\FRIZQT___CYR.TTF",10,"OUTLINE")
     f.stacktext:SetHeight(ic:GetHeight())
     f.stacktext:SetJustifyH("RIGHT")
     f.stacktext:SetVertexColor(1,1,1)
     f.stacktext:SetPoint("RIGHT", ic, "RIGHT",1,-5)
-    
+
     f.bar = CreateFrame("StatusBar",nil,f)
     f.bar:SetFrameStrata("MEDIUM")
     f.bar:SetStatusBarTexture("Interface\\AddOns\\NugRunning\\statusbar")
@@ -211,27 +210,27 @@ Spellgarden.FillFrame = function(self, f,width,height)
         self:SetStatusBarColor(r,g,b)
         self.bg:SetVertexColor(r*m,g*m,b*m)
     end
-    
+
     f.bar.bg = f.bar:CreateTexture(nil, "BORDER")
 	f.bar.bg:SetAllPoints(f.bar)
 	f.bar.bg:SetTexture("Interface\\AddOns\\NugRunning\\statusbar")
-    
+
     f.timeText = f.bar:CreateFontString();
-    f.timeText:SetFont("Fonts\\FRIZQT__.TTF",8)
+    f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
     f.timeText:SetJustifyH("RIGHT")
     f.timeText:SetVertexColor(1,1,1)
     f.timeText:SetPoint("TOPRIGHT", f.bar, "TOPRIGHT",-6,0)
     f.timeText:SetPoint("BOTTOMLEFT", f.bar, "BOTTOMLEFT",0,0)
-    
+
     f.spellText = f.bar:CreateFontString();
-    f.spellText:SetFont("Fonts\\FRIZQT__.TTF",height/2)
+    f.spellText:SetFont("Fonts\\FRIZQT___CYR.TTF",height/2)
     f.spellText:SetWidth(width/4*3 -12)
     f.spellText:SetHeight(height/2+1)
     f.spellText:SetJustifyH("CENTER")
     f.spellText:SetVertexColor(1,1,1)
     f.spellText:SetPoint("LEFT", f.bar, "LEFT",6,0)
     f.spellText:SetAlpha(0.5)
-    
+
 
     f:SetScript("OnUpdate",TimerOnUpdate)
 
@@ -244,13 +243,13 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
         insets = {left = -2, right = -2, top = -2, bottom = -2},
     }
-    
+
     f:SetWidth(width)
     f:SetHeight(height)
-    
+
     f:SetBackdrop(backdrop)
     f:SetBackdropColor(0, 0, 0, 0.7)
-    
+
     local ic = CreateFrame("Frame",nil,f)
     -- ic:SetPoint("TOPLEFT",f,"TOPLEFT", 0, 0)
     ic:SetPoint("CENTER",f,"CENTER", 0, 0)
@@ -260,14 +259,14 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
     ict:SetTexCoord(.07, .93, .07, .93)
     ict:SetAllPoints(ic)
     f.icon = ict
-    
+
     f.stacktext = ic:CreateFontString(nil, "OVERLAY");
-    f.stacktext:SetFont("Fonts\\FRIZQT__.TTF",10,"OUTLINE")
+    f.stacktext:SetFont("Fonts\\FRIZQT____CYR.TTF",10,"OUTLINE")
     f.stacktext:SetHeight(ic:GetHeight())
     f.stacktext:SetJustifyH("RIGHT")
     f.stacktext:SetVertexColor(1,1,1)
     f.stacktext:SetPoint("RIGHT", ic, "RIGHT",1,-5)
-    
+
 
     f.bar = CreateFrame("Frame",nil,f)
     f.bar:SetFrameStrata("MEDIUM")
@@ -322,30 +321,30 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
         self.left:SetStatusBarColor(r*m,g*m,b*m)
         self.left.bg:SetVertexColor(r,g,b)
     end
-    
+
     -- f.bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
     f.bar:SetAllPoints(f)
-    
+
     -- f.bar.bg = f.bar:CreateTexture(nil, "BORDER")
     -- f.bar.bg:SetAllPoints(f.bar)
     -- f.bar.bg:SetTexture("Interface\\AddOns\\NugRunning\\statusbar")
-    
+
     f.timeText = f.bar:CreateFontString();
-    f.timeText:SetFont("Fonts\\FRIZQT__.TTF",8)
+    f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
     f.timeText:SetJustifyH("RIGHT")
     f.timeText:SetVertexColor(1,1,1)
     f.timeText:SetPoint("TOPRIGHT", f.bar, "TOPRIGHT",-6,0)
     f.timeText:SetPoint("BOTTOMLEFT", f.bar, "BOTTOMLEFT",0,0)
-    
+
     f.spellText = f.bar:CreateFontString();
-    f.spellText:SetFont("Fonts\\FRIZQT__.TTF",height/2)
+    f.spellText:SetFont("Fonts\\FRIZQT___CYR.TTF",height/2)
     f.spellText:SetWidth(width/4*3 -12)
     f.spellText:SetHeight(height/2+1)
     f.spellText:SetJustifyH("CENTER")
     f.spellText:SetVertexColor(1,1,1)
     f.spellText:SetPoint("LEFT", f.bar, "LEFT",6,0)
     f.spellText:SetAlpha(0.5)
-    
+
 
     f:SetScript("OnUpdate",TimerOnUpdate)
 
