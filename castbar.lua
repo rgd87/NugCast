@@ -1,5 +1,9 @@
 Spellgarden = CreateFrame("Frame",nil,UIParent)
 
+local npCastbars = {}
+local npCastbarsByUnit = {}
+local MAX_NAMEPLATE_CASTBARS = 7
+
 Spellgarden:RegisterEvent("PLAYER_LOGIN")
 Spellgarden:SetScript("OnEvent",function(self)
     local player = Spellgarden:SpawnCastBar("player",200,25)
@@ -23,6 +27,10 @@ Spellgarden:SetScript("OnEvent",function(self)
     Spellgarden:AddMore(focus)
     if oUF_Focus then focus:SetPoint("TOPRIGHT",oUF_Focus,"BOTTOMRIGHT", 0,-5)
     else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
+
+
+    -- local npheader = Spellgarden:CreateNameplateCastbars()
+    -- npheader:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 end)
 
 local TimerOnUpdate = function(self,time)
@@ -32,6 +40,7 @@ local TimerOnUpdate = function(self,time)
     else val = self.endTime - beforeEnd end
     self.bar:SetValue(val)
     self.timeText:SetFormattedText("%.1f",beforeEnd)
+    if beforeEnd <= 0 then self:Hide() end
 end
 
 local defaultCastColor = { 0.6, 0, 1 }
@@ -127,7 +136,7 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
     f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
     f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
     f:SetScript("OnEvent", function(self, event, ...)
-        Spellgarden[event](self, event, ...)
+        return Spellgarden[event](self, event, ...)
     end)
     f.UpdateCastingInfo = UpdateCastingInfo
 
@@ -349,4 +358,74 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
     f:SetScript("OnUpdate",TimerOnUpdate)
 
     return f
+end
+
+
+local function FindFreeCastbar()
+    for i=1, MAX_NAMEPLATE_CASTBARS do 
+        local bar = npCastbars[i]
+        if not bar:IsShown() then
+            return  bar
+        end
+    end
+end
+
+function Spellgarden:CreateNameplateCastbars()
+    local npCastbarsHeader = CreateFrame("Frame", nil, UIParent)
+    npCastbarsHeader:Hide()
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_START")
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_DELAYED")
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_STOP")
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_FAILED")
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
+    npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+
+    -- npCastbarsHeader:RegisterEvent("NAME_PLATE_CREATED")
+    -- npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+    npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+
+    npCastbarsHeader:SetScript("OnEvent", function(self, event, unit, ...)
+        if not unit:match("nameplate") then return end
+        if UnitIsUnit(unit, "player") then return end
+        if event == "NAME_PLATE_UNIT_REMOVED" then
+            if npCastbarsByUnit[unit] then
+                npCastbarsByUnit[unit]:Hide()
+            end
+        elseif event == "UNIT_SPELLCAST_START" and not npCastbarsByUnit[unit] then
+            local castbar = FindFreeCastbar()
+            if castbar then
+                castbar.unit = unit
+                npCastbarsByUnit[unit] = castbar
+                return Spellgarden[event](castbar, event, unit, ...)
+            end
+        else
+            local castbar = npCastbarsByUnit[unit]
+            if castbar then
+                return Spellgarden[event](castbar, event, unit, ...)
+            end
+        end
+    end)
+
+    for i=1, MAX_NAMEPLATE_CASTBARS do 
+        local f = CreateFrame("Frame", nil, npCastbarsHeader)
+        self:FillFrame(f,200,20)
+        self:AddMore(f)
+
+        f:SetScript("OnHide", function(self)
+            if self.unit then
+                npCastbarsByUnit[self.unit] = nil
+                self.unit = nil
+            end
+        end)
+
+        f:SetPoint("TOPLEFT", npCastbarsHeader, "CENTER", 0, 0 + i*30)
+
+        f:Hide()
+        f.UpdateCastingInfo = UpdateCastingInfo
+        table.insert(npCastbars, f)
+    end
+
+    return npCastbarsHeader
 end
