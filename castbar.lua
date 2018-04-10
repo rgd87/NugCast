@@ -87,7 +87,7 @@ function Spellgarden:PLAYER_LOGIN()
     anchors["player"] = player_anchor
 
 
-    local target = Spellgarden:SpawnCastBar("target",200,25)
+    local target = Spellgarden:SpawnCastBar("target",250,27)
     target:RegisterEvent("PLAYER_TARGET_CHANGED")
     Spellgarden:AddMore(target)
     SpellgardenTarget = target
@@ -105,7 +105,7 @@ function Spellgarden:PLAYER_LOGIN()
     if SpellgardenDB.nameplateCastbars then
         local npheader = Spellgarden:CreateNameplateCastbars()
         local nameplates_anchor = self:CreateAnchor(SpellgardenDB.anchors["nameplates"])
-        npheader:SetPoint("TOPRIGHT", nameplates_anchor,"BOTTOMLEFT",0,0)
+        npheader:SetPoint("TOPLEFT", nameplates_anchor,"BOTTOMRIGHT",0,0)
         -- npheader:SetPoint("CENTER", UIParent, "CENTER",0,0)
         anchors["nameplates"] = nameplates_anchor
     end
@@ -516,17 +516,15 @@ function Spellgarden:CreateNameplateCastbars()
                 table.insert(ordered_bars, bar)
                 bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
                 if bar.isTarget == 1 then
-                    bar.bar:SetColor(unpack(highlightColor))
-                    bar:SetBarWidth(0)
-                    -- bar:SetAlpha(1)
+                    bar:SetAlpha(0)
+                    -- bar.bar:SetColor(unpack(highlightColor))
+                    -- bar:SetBarWidth(0)
                 else
-                    bar.bar:SetColor(unpack(defaultCastColor))
-                    bar:SetBarWidth(-25)
-                    -- bar:SetAlpha(0.6)
+                    bar:SetAlpha(1)
+                    -- bar.bar:SetColor(unpack(defaultCastColor))
+                    -- bar:SetBarWidth(-25)
                 end
-                -- bar:Show()
-            -- else
-                -- bar:Hide()
+
             end
         end
 
@@ -542,7 +540,7 @@ function Spellgarden:CreateNameplateCastbars()
         end
         for i, timer in ipairs(ordered_bars) do
             -- timer:ClearAllPoints()
-            timer:SetPoint("TOPRIGHT", prev or self, prev and "BOTTOMRIGHT" or "TOPRIGHT", 0, gap)
+            timer:SetPoint("TOPLEFT", prev or self, prev and "BOTTOMLEFT" or "TOPLEFT", 0, gap)
             gap = -5
             prev = timer
         end
@@ -598,7 +596,8 @@ function Spellgarden:CreateNameplateCastbars()
 
     for i=1, MAX_NAMEPLATE_CASTBARS do 
         local f = CreateFrame("Frame", nil, npCastbarsHeader)
-        self:FillFrame(f,200,20)
+        self:FillFrame(f,180,18)
+        -- self.bar:SetColor(unpack(nameplateBarColor))
         self:AddMore(f)
         f.endTime = 0
 
