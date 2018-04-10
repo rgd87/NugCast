@@ -2,26 +2,99 @@ Spellgarden = CreateFrame("Frame",nil,UIParent)
 
 local npCastbars = {}
 local npCastbarsByUnit = {}
+local npCastbarsByGUID = {}
 local MAX_NAMEPLATE_CASTBARS = 7
+local anchors = {}
+
+local defaults = {
+    anchors = {
+        player = {
+            point = "CENTER",
+            parent = "UIParent",
+            to = "CENTER",
+            x = 0,
+            y = 0,
+        },
+        target = {
+            point = "CENTER",
+            parent = "UIParent",
+            to = "CENTER",
+            x = 0,
+            y = -200,
+        },
+        nameplates = {
+            point = "CENTER",
+            parent = "UIParent",
+            to = "CENTER",
+            x = 0,
+            y = 200,
+        },
+    },
+    nameplateCastbars = true,
+    -- tex = "",
+}
+
+local function SetupDefaults(t, defaults)
+    if not defaults then return end
+    for k,v in pairs(defaults) do
+        if type(v) == "table" then
+            if t[k] == nil then
+                t[k] = CopyTable(v)
+            elseif t[k] == false then
+                t[k] = false --pass
+            else
+                SetupDefaults(t[k], v)
+            end
+        else
+            if t[k] == nil then t[k] = v end
+        end
+    end
+end
+local function RemoveDefaults(t, defaults)
+    if not defaults then return end
+    for k, v in pairs(defaults) do
+        if type(t[k]) == 'table' and type(v) == 'table' then
+            RemoveDefaults(t[k], v)
+            if next(t[k]) == nil then
+                t[k] = nil
+            end
+        elseif t[k] == v then
+            t[k] = nil
+        end
+    end
+    return t
+end
+
 
 Spellgarden:RegisterEvent("PLAYER_LOGIN")
-Spellgarden:SetScript("OnEvent",function(self)
+Spellgarden:RegisterEvent("PLAYER_LOGOUT")
+Spellgarden:SetScript("OnEvent", function(self, event, ...)
+    return self[event](self, event, ...)
+end)
+
+function Spellgarden:PLAYER_LOGIN()
+    SpellgardenDB = SpellgardenDB or {}
+    SetupDefaults(SpellgardenDB, defaults)
+
     local player = Spellgarden:SpawnCastBar("player",200,25)
-    --player.spellText:SetAlpha(0.2)
     player.spellText:Hide()
     player.timeText:Hide()
-    player:SetPoint("BOTTOMRIGHT",MultiBarBottomLeftButton12,"TOPRIGHT",-4, 48)
     CastingBarFrame:UnregisterAllEvents()
     SpellgardenPlayer = player
+
+    local player_anchor = self:CreateAnchor(SpellgardenDB.anchors["player"])
+    player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
+    anchors["player"] = player_anchor
+
 
     local target = Spellgarden:SpawnCastBar("target",200,25)
     target:RegisterEvent("PLAYER_TARGET_CHANGED")
     Spellgarden:AddMore(target)
-    -- target:SetPoint("CENTER",UIParent,"CENTER",200,-120)
-    target:SetPoint("CENTER",UIParent,"CENTER",200,-190)
-    -- target:SetPoint("CENTER",UIParent,"CENTER",400,0)
     SpellgardenTarget = target
-    CastingBarFrame:UnregisterAllEvents()
+
+    local target_anchor = self:CreateAnchor(SpellgardenDB.anchors["target"])
+    target:SetPoint("TOPLEFT",target_anchor,"BOTTOMRIGHT",0,0)
+    anchors["target"] = target_anchor
 
     local focus = Spellgarden:SpawnCastBar("focus",200,25)
     Spellgarden:AddMore(focus)
@@ -29,9 +102,23 @@ Spellgarden:SetScript("OnEvent",function(self)
     else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
 
 
-    -- local npheader = Spellgarden:CreateNameplateCastbars()
-    -- npheader:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-end)
+    if SpellgardenDB.nameplateCastbars then
+        local npheader = Spellgarden:CreateNameplateCastbars()
+        local nameplates_anchor = self:CreateAnchor(SpellgardenDB.anchors["nameplates"])
+        npheader:SetPoint("TOPLEFT", nameplates_anchor,"BOTTOMRIGHT",0,0)
+        -- npheader:SetPoint("CENTER", UIParent, "CENTER",0,0)
+        anchors["nameplates"] = nameplates_anchor
+    end
+
+
+    SLASH_SPELLGARDEN1= "/spellgarden"
+    SLASH_SPELLGARDEN2= "/spg"
+    SlashCmdList["SPELLGARDEN"] = Spellgarden.SlashCmd
+end
+
+function Spellgarden:PLAYER_LOGOUT()
+    RemoveDefaults(SpellgardenDB, defaults)
+end
 
 local TimerOnUpdate = function(self,time)
     local beforeEnd = self.endTime - GetTime()
@@ -364,15 +451,27 @@ end
 local function FindFreeCastbar()
     for i=1, MAX_NAMEPLATE_CASTBARS do 
         local bar = npCastbars[i]
-        if not bar:IsShown() then
+        if not bar:IsVisible() then
             return  bar
         end
     end
 end
 
+
+local ordered_bars = {}
+local function bar_sort_func(a,b)
+    return a.endTime > b.endTime
+end
+
+function Spellgarden:ArrangeNameplateTimers()
+
+end
+
 function Spellgarden:CreateNameplateCastbars()
     local npCastbarsHeader = CreateFrame("Frame", nil, UIParent)
-    npCastbarsHeader:Hide()
+    -- npCastbarsHeader:Hide()
+    npCastbarsHeader:SetWidth(10)
+    npCastbarsHeader:SetHeight(10)
     npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_START")
     npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_DELAYED")
     npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_STOP")
@@ -383,28 +482,54 @@ function Spellgarden:CreateNameplateCastbars()
     npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 
     -- npCastbarsHeader:RegisterEvent("NAME_PLATE_CREATED")
-    -- npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+    npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_ADDED")
     npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 
     npCastbarsHeader:SetScript("OnEvent", function(self, event, unit, ...)
         if not unit:match("nameplate") then return end
         if UnitIsUnit(unit, "player") then return end
+
+        -- print('hello2',castbar, event, npCastbarsByUnit[unit])
         if event == "NAME_PLATE_UNIT_REMOVED" then
             if npCastbarsByUnit[unit] then
                 npCastbarsByUnit[unit]:Hide()
+            end
+        elseif event == "NAME_PLATE_UNIT_ADDED" then
+            if UnitCastingInfo(unit) then
+                event = "UNIT_SPELLCAST_START"
+                local castbar = FindFreeCastbar()
+                if castbar then
+                    castbar.unit = unit
+                    npCastbarsByUnit[unit] = castbar
+                    Spellgarden[event](castbar, event, unit, ...)
+                end
             end
         elseif event == "UNIT_SPELLCAST_START" and not npCastbarsByUnit[unit] then
             local castbar = FindFreeCastbar()
             if castbar then
                 castbar.unit = unit
                 npCastbarsByUnit[unit] = castbar
-                return Spellgarden[event](castbar, event, unit, ...)
+                Spellgarden[event](castbar, event, unit, ...)
             end
         else
             local castbar = npCastbarsByUnit[unit]
             if castbar then
-                return Spellgarden[event](castbar, event, unit, ...)
+                Spellgarden[event](castbar, event, unit, ...)
             end
+        end
+
+        table.wipe(ordered_bars)
+        for i=1, MAX_NAMEPLATE_CASTBARS do 
+            local bar = npCastbars[i]
+            if bar:IsShown() then
+                table.insert(ordered_bars, bar)
+            end
+        end
+
+        table.sort(ordered_bars, bar_sort_func)
+        for i, timer in ipairs(ordered_bars) do
+            -- timer:ClearAllPoints()
+            timer:SetPoint("TOPLEFT", npCastbarsHeader, "TOPLEFT", 0, 0 + i*30)
         end
     end)
 
@@ -412,15 +537,17 @@ function Spellgarden:CreateNameplateCastbars()
         local f = CreateFrame("Frame", nil, npCastbarsHeader)
         self:FillFrame(f,200,20)
         self:AddMore(f)
+        f.endTime = 0
 
         f:SetScript("OnHide", function(self)
             if self.unit then
+                -- print("onhide", self.unit, npCastbarsByUnit[self.unit])
                 npCastbarsByUnit[self.unit] = nil
                 self.unit = nil
             end
         end)
 
-        f:SetPoint("TOPLEFT", npCastbarsHeader, "CENTER", 0, 0 + i*30)
+        -- f:SetPoint("TOPLEFT", npCastbarsHeader, "TOPLEFT", 0, 0 + i*30)
 
         f:Hide()
         f.UpdateCastingInfo = UpdateCastingInfo
@@ -428,4 +555,87 @@ function Spellgarden:CreateNameplateCastbars()
     end
 
     return npCastbarsHeader
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+function Spellgarden:CreateAnchor(db_tbl)
+    local f = CreateFrame("Frame",nil,UIParent)
+    f:SetHeight(20)
+    f:SetWidth(20)
+    f:EnableMouse(true)
+    f:SetMovable(true)
+    f:Hide()
+
+    local t = f:CreateTexture(nil,"BACKGROUND")
+    t:SetTexture("Interface\\Buttons\\UI-RadioButton")
+    t:SetTexCoord(0,0.25,0,1)
+    t:SetAllPoints(f)
+
+    t = f:CreateTexture(nil,"BACKGROUND")
+    t:SetTexture("Interface\\Buttons\\UI-RadioButton")
+    t:SetTexCoord(0.25,0.49,0,1)
+    t:SetVertexColor(1, 0, 0)
+    t:SetAllPoints(f)
+
+    f.db_tbl = db_tbl
+
+    f:SetScript("OnMouseDown",function(self)
+        self:StartMoving()
+    end)
+    f:SetScript("OnMouseUp",function(self)
+            local opts = self.db_tbl
+            self:StopMovingOrSizing();
+            local point,_,to,x,y = self:GetPoint(1)
+            opts.point = point
+            opts.parent = "UIParent"
+            opts.to = to
+            opts.x = x
+            opts.y = y
+    end)
+
+    local pos = f.db_tbl
+    f:SetPoint(pos.point, pos.parent, pos.to, pos.x, pos.y)
+    return f
+end
+
+
+Spellgarden.Commands = {
+    ["unlock"] = function()
+        for unit, anchor in pairs(anchors) do
+            anchor:Show()
+        end
+    end,
+    ["lock"] = function()
+        for unit, anchor in pairs(anchors) do
+            anchor:Hide()
+        end
+    end,
+    ["nameplatebars"] = function()
+        SpellgardenDB.nameplateCastbars = not SpellgardenDB.nameplateCastbars
+    end,
+}
+
+function Spellgarden.SlashCmd(msg)
+    local k,v = string.match(msg, "([%w%+%-%=]+) ?(.*)")
+    if not k or k == "help" then print([[Usage:
+      |cff00ff00/spg lock|r
+      |cff00ff00/spg unlock|r
+      |cff00ff00/spg nameplatebars|r
+    ]]
+    )end
+    if Spellgarden.Commands[k] then
+        Spellgarden.Commands[k](v)
+    end
+
 end
