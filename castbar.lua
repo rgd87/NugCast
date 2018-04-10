@@ -532,12 +532,12 @@ function Spellgarden:CreateNameplateCastbars()
         local prev
         local gap = 0
         -- local xgap = 0
-        local firstTimer = ordered_bars[1]
-        local gotTarget = true
-        if firstTimer and firstTimer.isTarget == 0 then
-            gap = -5-firstTimer:GetHeight()
-            gotTarget = false
-        end
+        -- local firstTimer = ordered_bars[1]
+        -- local gotTarget = true
+        -- if firstTimer and firstTimer.isTarget == 0 then
+        --     gap = -5-firstTimer:GetHeight()
+        --     gotTarget = false
+        -- end
         for i, timer in ipairs(ordered_bars) do
             -- timer:ClearAllPoints()
             timer:SetPoint("TOPLEFT", prev or self, prev and "BOTTOMLEFT" or "TOPLEFT", 0, gap)
@@ -580,6 +580,7 @@ function Spellgarden:CreateNameplateCastbars()
                 end
             end
         elseif (event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START") and not npCastbarsByUnit[unit] then
+            if not UnitIsEnemy("player", unit) then return end
             local castbar = FindFreeCastbar()
             if castbar then
                 castbar.unit = unit
