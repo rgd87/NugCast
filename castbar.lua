@@ -105,7 +105,7 @@ function Spellgarden:PLAYER_LOGIN()
     if SpellgardenDB.nameplateCastbars then
         local npheader = Spellgarden:CreateNameplateCastbars()
         local nameplates_anchor = self:CreateAnchor(SpellgardenDB.anchors["nameplates"])
-        npheader:SetPoint("TOPLEFT", nameplates_anchor,"BOTTOMRIGHT",0,0)
+        npheader:SetPoint("TOPRIGHT", nameplates_anchor,"BOTTOMLEFT",0,0)
         -- npheader:SetPoint("CENTER", UIParent, "CENTER",0,0)
         anchors["nameplates"] = nameplates_anchor
     end
@@ -132,6 +132,7 @@ end
 
 local defaultCastColor = { 0.6, 0, 1 }
 local defaultChannelColor = {200/255,50/255,95/255 }
+local highlightColor = { 206/255, 4/256, 56/256 }
 local coloredSpells = {}
 
 function Spellgarden.UNIT_SPELLCAST_START(self,event,unit,spell)
@@ -307,6 +308,14 @@ Spellgarden.FillFrame = function(self, f,width,height)
     f.bar:SetWidth(width - height - 1)
     f.bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
 
+    f.SetBarWidth = function(self, mod)
+        local w = width + mod
+        self:SetWidth(w)
+        self.bar:SetWidth(w - height - 1)
+        self.spellText:SetWidth(w/4*3 -12)
+    end
+
+
     local m = 0.5
     f.bar.SetColor = function(self, r,g,b)
         self:SetStatusBarColor(r,g,b)
@@ -466,7 +475,13 @@ end
 
 local ordered_bars = {}
 local function bar_sort_func(a,b)
-    return a.endTime > b.endTime
+    local ap = a.isTarget
+    local bp = b.isTarget
+    if ap == bp then
+        return a.endTime < b.endTime
+    else
+        return ap > bp
+    end
 end
 
 function Spellgarden:ArrangeNameplateTimers()
@@ -487,7 +502,7 @@ function Spellgarden:CreateNameplateCastbars()
     npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
     npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 
-    -- npCastbarsHeader:RegisterEvent("PLAYER_TARGET_CHANGED")
+    npCastbarsHeader:RegisterEvent("PLAYER_TARGET_CHANGED")
     
     -- npCastbarsHeader:RegisterEvent("NAME_PLATE_CREATED")
     npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_ADDED")
@@ -499,23 +514,44 @@ function Spellgarden:CreateNameplateCastbars()
             local bar = npCastbars[i]
             if bar.isActive then--and not UnitIsUnit(bar.unit, "target") then
                 table.insert(ordered_bars, bar)
+                bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
+                if bar.isTarget == 1 then
+                    bar.bar:SetColor(unpack(highlightColor))
+                    bar:SetBarWidth(0)
+                    -- bar:SetAlpha(1)
+                else
+                    bar.bar:SetColor(unpack(defaultCastColor))
+                    bar:SetBarWidth(-25)
+                    -- bar:SetAlpha(0.6)
+                end
                 -- bar:Show()
             -- else
                 -- bar:Hide()
             end
         end
 
-        table.sort(ordered_bars, bar_sort_func)
+        table.sort(ordered_bars, bar_sort_func)     
+        local prev
+        local gap = 0
+        -- local xgap = 0
+        local firstTimer = ordered_bars[1]
+        local gotTarget = true
+        if firstTimer and firstTimer.isTarget == 0 then
+            gap = -5-firstTimer:GetHeight()
+            gotTarget = false
+        end
         for i, timer in ipairs(ordered_bars) do
             -- timer:ClearAllPoints()
-            timer:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0 + i*30)
+            timer:SetPoint("TOPRIGHT", prev or self, prev and "BOTTOMRIGHT" or "TOPRIGHT", 0, gap)
+            gap = -5
+            prev = timer
         end
     end
 
     npCastbarsHeader:SetScript("OnEvent", function(self, event, unit, ...)  
-        -- if event == "PLAYER_TARGET_CHANGED" then
-        --     return npCastbarsHeader:Arrange()
-        -- end
+        if event == "PLAYER_TARGET_CHANGED" then
+            return npCastbarsHeader:Arrange()
+        end
 
         if not unit:match("nameplate") then return end
         if UnitIsUnit(unit, "player") then return end
