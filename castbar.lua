@@ -153,11 +153,9 @@ Spellgarden.UNIT_SPELLCAST_CHANNEL_UPDATE = Spellgarden.UNIT_SPELLCAST_CHANNEL_S
 
 function Spellgarden.UNIT_SPELLCAST_STOP(self, event, unit, spell)
     if unit ~= self.unit then return end
-    if self.unit and self.unit:match("nameplate") then
-        npCastbarsByUnit[self.unit] = nil
-        self.unit = nil
+    if self.Deactivate then
+        self:Deactivate()
     end
-    self.isActive = false
     self:Hide()
 end
 function Spellgarden.UNIT_SPELLCAST_FAILED(self, event, unit, spell, _,castID)
@@ -466,7 +464,7 @@ end
 local function FindFreeCastbar()
     for i=1, MAX_NAMEPLATE_CASTBARS do 
         local bar = npCastbars[i]
-        if not bar:IsVisible() then
+        if not bar.isActive then
             return  bar
         end
     end
@@ -475,13 +473,13 @@ end
 
 local ordered_bars = {}
 local function bar_sort_func(a,b)
-    local ap = a.isTarget
-    local bp = b.isTarget
-    if ap == bp then
+    -- local ap = a.isTarget
+    -- local bp = b.isTarget
+    -- if ap == bp then
         return a.endTime < b.endTime
-    else
-        return ap > bp
-    end
+    -- else
+        -- return ap > bp
+    -- end
 end
 
 function Spellgarden:ArrangeNameplateTimers()
@@ -513,14 +511,16 @@ function Spellgarden:CreateNameplateCastbars()
         for i=1, MAX_NAMEPLATE_CASTBARS do 
             local bar = npCastbars[i]
             if bar.isActive then--and not UnitIsUnit(bar.unit, "target") then
-                table.insert(ordered_bars, bar)
                 bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
                 if bar.isTarget == 1 then
-                    bar:SetAlpha(0)
+                    bar:Hide()
+                    -- bar:SetAlpha(0)
                     -- bar.bar:SetColor(unpack(highlightColor))
                     -- bar:SetBarWidth(0)
                 else
-                    bar:SetAlpha(1)
+                    table.insert(ordered_bars, bar)
+                    -- bar:SetAlpha(1)
+                    bar:Show()
                     -- bar.bar:SetColor(unpack(defaultCastColor))
                     -- bar:SetBarWidth(-25)
                 end
@@ -556,8 +556,10 @@ function Spellgarden:CreateNameplateCastbars()
 
         -- print('hello2',castbar, event, npCastbarsByUnit[unit])
         if event == "NAME_PLATE_UNIT_REMOVED" then
-            if npCastbarsByUnit[unit] then
-                npCastbarsByUnit[unit]:Hide()
+            local t = npCastbarsByUnit[unit]
+            if t then
+                t:Deactivate()
+                t:Hide()
             end
         elseif event == "NAME_PLATE_UNIT_ADDED" then
             if UnitCastingInfo(unit) then
@@ -599,6 +601,15 @@ function Spellgarden:CreateNameplateCastbars()
         self:FillFrame(f,180,18)
         -- self.bar:SetColor(unpack(nameplateBarColor))
         self:AddMore(f)
+
+        f.Deactivate = function(self)
+            if self.unit then
+                npCastbarsByUnit[self.unit] = nil
+                self.unit = nil
+            end
+            self.isActive = false
+        end
+
         f.endTime = 0
 
         -- f:SetScript("OnHide", function(self)
