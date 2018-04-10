@@ -30,6 +30,21 @@ local defaults = {
             y = -137,
         },
     },
+    player = {
+        width = 200,
+        height = 25,
+        texture = "",
+    },
+    target = {
+        width = 250,
+        height = 27,
+        texture = "",
+    },
+    nameplates = {
+        width = 180,
+        height = 18,
+        texture = "",
+    },
     nameplateCastbars = true,
     -- tex = "",
 }
@@ -76,7 +91,7 @@ function Spellgarden:PLAYER_LOGIN()
     SpellgardenDB = SpellgardenDB or {}
     SetupDefaults(SpellgardenDB, defaults)
 
-    local player = Spellgarden:SpawnCastBar("player",200,25)
+    local player = Spellgarden:SpawnCastBar("player", SpellgardenDB.player.width, SpellgardenDB.player.height)
     player.spellText:Hide()
     player.timeText:Hide()
     CastingBarFrame:UnregisterAllEvents()
@@ -87,7 +102,7 @@ function Spellgarden:PLAYER_LOGIN()
     anchors["player"] = player_anchor
 
 
-    local target = Spellgarden:SpawnCastBar("target",250,27)
+    local target = Spellgarden:SpawnCastBar("target", SpellgardenDB.target.width, SpellgardenDB.target.height)
     target:RegisterEvent("PLAYER_TARGET_CHANGED")
     Spellgarden:AddMore(target)
     SpellgardenTarget = target
@@ -215,7 +230,7 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
     -- if unit == "player" then
         -- self:MakeDoubleCastbar(f,width,height)
     -- else
-        self:FillFrame(f,width,height)
+        self:FillFrame(f, width,height)
     -- end
 
     f:Hide()
@@ -306,11 +321,17 @@ Spellgarden.FillFrame = function(self, f,width,height)
     f.bar:SetWidth(width - height - 1)
     f.bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
 
-    f.SetBarWidth = function(self, mod)
-        local w = width + mod
-        self:SetWidth(w)
-        self.bar:SetWidth(w - height - 1)
-        self.spellText:SetWidth(w/4*3 -12)
+    f.Resize = function(self, width, height)
+        self:SetWidth(width)
+        self:SetHeight(height)
+        self.bar:SetWidth(width - height - 1)
+        self.bar:SetHeight(height)
+        self.spellText:SetWidth(width/4*3 -12)
+        f.spellText:SetHeight(height/2+1)
+        self.stacktext:SetHeight(ic:GetHeight())
+        local ic = self.icon:GetParent()
+        ic:SetWidth(height)
+        ic:SetHeight(height)
     end
 
 
@@ -514,15 +535,11 @@ function Spellgarden:CreateNameplateCastbars()
                 bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
                 if bar.isTarget == 1 then
                     bar:Hide()
-                    -- bar:SetAlpha(0)
                     -- bar.bar:SetColor(unpack(highlightColor))
-                    -- bar:SetBarWidth(0)
                 else
                     table.insert(ordered_bars, bar)
-                    -- bar:SetAlpha(1)
                     bar:Show()
                     -- bar.bar:SetColor(unpack(defaultCastColor))
-                    -- bar:SetBarWidth(-25)
                 end
 
             end
@@ -599,7 +616,7 @@ function Spellgarden:CreateNameplateCastbars()
 
     for i=1, MAX_NAMEPLATE_CASTBARS do 
         local f = CreateFrame("Frame", nil, npCastbarsHeader)
-        self:FillFrame(f,180,18)
+        self:FillFrame(f, SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height)
         -- self.bar:SetColor(unpack(nameplateBarColor))
         self:AddMore(f)
 
@@ -680,6 +697,16 @@ function Spellgarden:CreateAnchor(db_tbl)
 end
 
 
+
+local ParseOpts = function(str)
+    local t = {}
+    local capture = function(k,v)
+        t[k:lower()] = tonumber(v) or v
+        return ""
+    end
+    str:gsub("(%w+)%s*=%s*%[%[(.-)%]%]", capture):gsub("(%w+)%s*=%s*(%S+)", capture)
+    return t
+end
 Spellgarden.Commands = {
     ["unlock"] = function()
         for unit, anchor in pairs(anchors) do
@@ -694,6 +721,24 @@ Spellgarden.Commands = {
     ["nameplatebars"] = function()
         SpellgardenDB.nameplateCastbars = not SpellgardenDB.nameplateCastbars
     end,
+    ["set"] = function(v)
+        local p = ParseOpts(v)
+        local unit = p["unit"]
+        if unit then
+            if p.width then SpellgardenDB[unit].width = p.width end
+            if p.height then SpellgardenDB[unit].height = p.height end
+
+            if unit == "player" then
+                SpellgardenPlayer:Resize(SpellgardenDB.player.width, SpellgardenDB.player.height)
+            elseif unit == "target" then
+                SpellgardenTarget:Resize(SpellgardenDB.target.width, SpellgardenDB.target.height)
+            elseif unit == "nameplates" then
+                for i, timer in ipairs(npCastbars) do
+                    timer:Resize(SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height)
+                end
+            end
+        end
+    end,
 }
 
 function Spellgarden.SlashCmd(msg)
@@ -701,6 +746,7 @@ function Spellgarden.SlashCmd(msg)
     if not k or k == "help" then print([[Usage:
       |cff00ff00/spg lock|r
       |cff00ff00/spg unlock|r
+      |cff00ff00/spg set|r unit=<player||target||nameplates> width=<num> height=<num>
       |cff00ff00/spg nameplatebars|r
     ]]
     )end
