@@ -534,8 +534,16 @@ function Spellgarden:CreateNameplateCastbars()
                     npCastbarsByUnit[unit] = castbar
                     Spellgarden[event](castbar, event, unit, ...)
                 end
+            elseif UnitChannelInfo(unit) then
+                event = "UNIT_SPELLCAST_CHANNEL_START"
+                local castbar = FindFreeCastbar()
+                if castbar then
+                    castbar.unit = unit
+                    npCastbarsByUnit[unit] = castbar
+                    Spellgarden[event](castbar, event, unit, ...)
+                end
             end
-        elseif event == "UNIT_SPELLCAST_START" and not npCastbarsByUnit[unit] then
+        elseif (event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START") and not npCastbarsByUnit[unit] then
             local castbar = FindFreeCastbar()
             if castbar then
                 castbar.unit = unit
