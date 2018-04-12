@@ -45,6 +45,8 @@ local defaults = {
         height = 18,
         texture = "",
     },
+    targetCastbar = true,
+    nameplateExcludeTarget = false,
     nameplateCastbars = true,
     -- tex = "",
 }
@@ -93,7 +95,7 @@ function Spellgarden:PLAYER_LOGIN()
 
     local player = Spellgarden:SpawnCastBar("player", SpellgardenDB.player.width, SpellgardenDB.player.height)
     player.spellText:Hide()
-    player.timeText:Hide()
+    -- player.timeText:Hide()
     CastingBarFrame:UnregisterAllEvents()
     SpellgardenPlayer = player
 
@@ -101,20 +103,21 @@ function Spellgarden:PLAYER_LOGIN()
     player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
     anchors["player"] = player_anchor
 
+    if SpellgardenDB.targetCastbar then
+        local target = Spellgarden:SpawnCastBar("target", SpellgardenDB.target.width, SpellgardenDB.target.height)
+        target:RegisterEvent("PLAYER_TARGET_CHANGED")
+        Spellgarden:AddMore(target)
+        SpellgardenTarget = target
 
-    local target = Spellgarden:SpawnCastBar("target", SpellgardenDB.target.width, SpellgardenDB.target.height)
-    target:RegisterEvent("PLAYER_TARGET_CHANGED")
-    Spellgarden:AddMore(target)
-    SpellgardenTarget = target
+        local target_anchor = self:CreateAnchor(SpellgardenDB.anchors["target"])
+        target:SetPoint("TOPLEFT",target_anchor,"BOTTOMRIGHT",0,0)
+        anchors["target"] = target_anchor
+    end
 
-    local target_anchor = self:CreateAnchor(SpellgardenDB.anchors["target"])
-    target:SetPoint("TOPLEFT",target_anchor,"BOTTOMRIGHT",0,0)
-    anchors["target"] = target_anchor
-
-    local focus = Spellgarden:SpawnCastBar("focus",200,25)
-    Spellgarden:AddMore(focus)
-    if oUF_Focus then focus:SetPoint("TOPRIGHT",oUF_Focus,"BOTTOMRIGHT", 0,-5)
-    else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
+    -- local focus = Spellgarden:SpawnCastBar("focus",200,25)
+    -- Spellgarden:AddMore(focus)
+    -- if oUF_Focus then focus:SetPoint("TOPRIGHT",oUF_Focus,"BOTTOMRIGHT", 0,-5)
+    -- else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
 
 
     if SpellgardenDB.nameplateCastbars then
@@ -534,12 +537,19 @@ function Spellgarden:CreateNameplateCastbars()
             if bar.isActive then--and not UnitIsUnit(bar.unit, "target") then
                 bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
                 if bar.isTarget == 1 then
-                    bar:Hide()
-                    -- bar.bar:SetColor(unpack(highlightColor))
+                    if SpellgardenDB.nameplateExcludeTarget then
+                        bar:Hide()
+                    else
+                        table.insert(ordered_bars, bar)
+                        bar.bar:SetColor(unpack(highlightColor))
+                    end
                 else
                     table.insert(ordered_bars, bar)
                     bar:Show()
-                    -- bar.bar:SetColor(unpack(defaultCastColor))
+                    if not SpellgardenDB.nameplateExcludeTarget then    
+                        local color = (bar.inverted and defaultChannelColor or defaultCastColor)
+                        bar.bar:SetColor(unpack(color))
+                    end
                 end
 
             end
@@ -720,7 +730,18 @@ Spellgarden.Commands = {
     end,
     ["nameplatebars"] = function()
         SpellgardenDB.nameplateCastbars = not SpellgardenDB.nameplateCastbars
+        print("Nameplate castbars turned "..(SpellgardenDB.nameplateCastbars and "on" or "off")..". Will take effect after /reload")
     end,
+
+    ["excludetarget"] = function()
+        SpellgardenDB.nameplateExcludeTarget = not SpellgardenDB.nameplateExcludeTarget
+    end,
+
+    ["targetcastbar"] = function()
+        SpellgardenDB.targetCastbar = not SpellgardenDB.targetCastbar
+        print("Target castbar turned "..(SpellgardenDB.targetCastbar and "on" or "off")..". Will take effect after /reload")
+    end,
+
     ["set"] = function(v)
         local p = ParseOpts(v)
         local unit = p["unit"]
@@ -746,6 +767,8 @@ function Spellgarden.SlashCmd(msg)
     if not k or k == "help" then print([[Usage:
       |cff00ff00/spg lock|r
       |cff00ff00/spg unlock|r
+      |cff00ff00/spg excludetarget|r
+      |cff00ff00/spg targetcastbar|r
       |cff00ff00/spg set|r unit=<player||target||nameplates> width=<num> height=<num>
       |cff00ff00/spg nameplatebars|r
     ]]
