@@ -315,7 +315,7 @@ Spellgarden.FillFrame = function(self, f,width,height)
 
     f.bar = CreateFrame("StatusBar",nil,f)
     f.bar:SetFrameStrata("MEDIUM")
-    f.bar:SetStatusBarTexture("Interface\\AddOns\\NugRunning\\statusbar")
+    f.bar:SetStatusBarTexture("Interface\\AddOns\\Spellgarden\\statusbar")
     f.bar:GetStatusBarTexture():SetDrawLayer("ARTWORK")
     f.bar:SetHeight(height)
     f.bar:SetWidth(width - height - 1)
@@ -343,7 +343,7 @@ Spellgarden.FillFrame = function(self, f,width,height)
 
     f.bar.bg = f.bar:CreateTexture(nil, "BORDER")
 	f.bar.bg:SetAllPoints(f.bar)
-	f.bar.bg:SetTexture("Interface\\AddOns\\NugRunning\\statusbar")
+	f.bar.bg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
 
     f.timeText = f.bar:CreateFontString();
     f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
@@ -402,25 +402,25 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
     f.bar:SetFrameStrata("MEDIUM")
 
     local left = CreateFrame("StatusBar",nil,f.bar)
-    left:SetStatusBarTexture("Interface\\AddOns\\NugRunning\\statusbar")
+    left:SetStatusBarTexture("Interface\\AddOns\\Spellgarden\\statusbar")
     left:GetStatusBarTexture():SetDrawLayer("ARTWORK")
     left:SetHeight(height)
     left:SetWidth((width - height)/2 - 2)
     left:SetPoint("TOPLEFT", f.bar, "TOPLEFT",0,0)
     local leftbg = left:CreateTexture(nil, "BORDER")
     leftbg:SetAllPoints(left)
-    leftbg:SetTexture("Interface\\AddOns\\NugRunning\\statusbar")
+    leftbg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
     left.bg = leftbg
 
     local right = CreateFrame("StatusBar",nil,f.bar)
-    right:SetStatusBarTexture("Interface\\AddOns\\NugRunning\\statusbar")
+    right:SetStatusBarTexture("Interface\\AddOns\\Spellgarden\\statusbar")
     right:GetStatusBarTexture():SetDrawLayer("ARTWORK")
     right:SetHeight(height)
     right:SetWidth((width - height)/2 - 2)
     right:SetPoint("TOPRIGHT", f.bar, "TOPRIGHT",0,0)
     local rightbg = right:CreateTexture(nil, "BORDER")
     rightbg:SetAllPoints(right)
-    rightbg:SetTexture("Interface\\AddOns\\NugRunning\\statusbar")
+    rightbg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
     right.bg = rightbg
 
     f.bar.left = left
@@ -457,7 +457,7 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
 
     -- f.bar.bg = f.bar:CreateTexture(nil, "BORDER")
     -- f.bar.bg:SetAllPoints(f.bar)
-    -- f.bar.bg:SetTexture("Interface\\AddOns\\NugRunning\\statusbar")
+    -- f.bar.bg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
 
     f.timeText = f.bar:CreateFontString();
     f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
