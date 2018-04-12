@@ -1,5 +1,11 @@
 Spellgarden = CreateFrame("Frame",nil,UIParent)
 
+local SpellgardenDB
+
+local LSM = LibStub("LibSharedMedia-3.0")
+
+LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\Spellgarden\statusbar.tga]])
+
 local npCastbars = {}
 local npCastbarsByUnit = {}
 local npCastbarsByGUID = {}
@@ -33,19 +39,27 @@ local defaults = {
     player = {
         width = 200,
         height = 25,
-        texture = "",
+        spellFontSize = 10,
     },
     target = {
         width = 250,
         height = 27,
-        texture = "",
+        spellFontSize = 10,
     },
     nameplates = {
         width = 180,
         height = 18,
-        texture = "",
+        spellFontSize = 10,
     },
+    barTexture = "Aluminium",
+    spellFont = "Friz Quadrata TT",
+    timeFont = "Friz Quadrata TT",
+    timeFontSize = 8,
     targetCastbar = true,
+    textColor = {1,1,1,0.5},
+    castColor = { 0.6, 0, 1 },
+    channelColor = {200/255,50/255,95/255 },
+    highlightColor = { 206/255, 4/256, 56/256 },
     nameplateExcludeTarget = false,
     nameplateCastbars = true,
     -- tex = "",
@@ -90,12 +104,13 @@ Spellgarden:SetScript("OnEvent", function(self, event, ...)
 end)
 
 function Spellgarden:PLAYER_LOGIN()
-    SpellgardenDB = SpellgardenDB or {}
+    _G.SpellgardenDB = _G.SpellgardenDB or {}
+    SpellgardenDB = _G.SpellgardenDB
     SetupDefaults(SpellgardenDB, defaults)
 
     local player = Spellgarden:SpawnCastBar("player", SpellgardenDB.player.width, SpellgardenDB.player.height)
     player.spellText:Hide()
-    -- player.timeText:Hide()
+    player.timeText:Hide()
     CastingBarFrame:UnregisterAllEvents()
     SpellgardenPlayer = player
 
@@ -132,6 +147,15 @@ function Spellgarden:PLAYER_LOGIN()
     SLASH_SPELLGARDEN1= "/spellgarden"
     SLASH_SPELLGARDEN2= "/spg"
     SlashCmdList["SPELLGARDEN"] = Spellgarden.SlashCmd
+
+    local f = CreateFrame('Frame', nil, InterfaceOptionsFrame)
+    f:SetScript('OnShow', function(self)
+        self:SetScript('OnShow', nil)
+
+        if not Spellgarden.optionsPanel then
+            Spellgarden.optionsPanel = Spellgarden:CreateGUI()
+        end
+    end)
 end
 
 function Spellgarden:PLAYER_LOGOUT()
@@ -213,7 +237,7 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
             if self.shine:IsPlaying() then self.shine:Stop() end
             self.shine:Play()
         end
-        local color = coloredSpells[name] or (self.inverted and defaultChannelColor or defaultCastColor)
+        local color = coloredSpells[name] or (self.inverted and SpellgardenDB.channelColor or SpellgardenDB.castColor)
         self.bar:SetColor(unpack(color))
         self.isActive = true
         self:Show()
@@ -233,7 +257,7 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
     -- if unit == "player" then
         -- self:MakeDoubleCastbar(f,width,height)
     -- else
-        self:FillFrame(f, width,height)
+        self:FillFrame(f, width,height, unit)
     -- end
 
     f:Hide()
@@ -288,7 +312,31 @@ Spellgarden.AddMore = function(self, f)
     f.shine = sag
 end
 
-Spellgarden.FillFrame = function(self, f,width,height)
+local ResizeFunc = function(self, width, height)
+    local texture = LSM:Fetch("statusbar", SpellgardenDB.barTexture)
+    self.bar:SetStatusBarTexture(texture)
+    self.bar.bg:SetTexture(texture)
+
+    self:SetWidth(width)
+    self:SetHeight(height)
+    self.bar:SetWidth(width - height - 1)
+    self.bar:SetHeight(height)
+    self.spellText:SetWidth(width/4*3 -12)
+    self.spellText:SetHeight(height/2+1)
+    local ic = self.icon:GetParent()
+    ic:SetWidth(height)
+    ic:SetHeight(height)
+end
+
+local ResizeTextFunc = function(self, spellFontSize)
+    self.timeText:SetFont(LSM:Fetch("font", SpellgardenDB.timeFont), SpellgardenDB.timeFontSize)
+    self.timeText:SetTextColor(unpack(SpellgardenDB.textColor))
+
+    self.spellText:SetFont(LSM:Fetch("font", SpellgardenDB.spellFont), spellFontSize)
+    self.spellText:SetTextColor(unpack(SpellgardenDB.textColor))
+end
+
+Spellgarden.FillFrame = function(self, f,width,height, unit)
     local backdrop = {
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
         insets = {left = -2, right = -2, top = -2, bottom = -2},
@@ -309,33 +357,19 @@ Spellgarden.FillFrame = function(self, f,width,height)
     ict:SetAllPoints(ic)
     f.icon = ict
 
-    f.stacktext = ic:CreateFontString(nil, "OVERLAY");
-    -- f.stacktext:SetFont("Fonts\\FRIZQT___CYR.TTF",10,"OUTLINE")
-    f.stacktext:SetHeight(ic:GetHeight())
-    f.stacktext:SetJustifyH("RIGHT")
-    f.stacktext:SetVertexColor(1,1,1)
-    f.stacktext:SetPoint("RIGHT", ic, "RIGHT",1,-5)
+    local texture = LSM:Fetch("statusbar", SpellgardenDB.barTexture)
 
     f.bar = CreateFrame("StatusBar",nil,f)
     f.bar:SetFrameStrata("MEDIUM")
-    f.bar:SetStatusBarTexture("Interface\\AddOns\\Spellgarden\\statusbar")
+    f.bar:SetStatusBarTexture(texture)
     f.bar:GetStatusBarTexture():SetDrawLayer("ARTWORK")
     f.bar:SetHeight(height)
     f.bar:SetWidth(width - height - 1)
     f.bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
 
-    f.Resize = function(self, width, height)
-        self:SetWidth(width)
-        self:SetHeight(height)
-        self.bar:SetWidth(width - height - 1)
-        self.bar:SetHeight(height)
-        self.spellText:SetWidth(width/4*3 -12)
-        f.spellText:SetHeight(height/2+1)
-        self.stacktext:SetHeight(ic:GetHeight())
-        local ic = self.icon:GetParent()
-        ic:SetWidth(height)
-        ic:SetHeight(height)
-    end
+    f.Resize = ResizeFunc
+
+    f.ResizeText = ResizeTextFunc
 
 
     local m = 0.5
@@ -346,23 +380,27 @@ Spellgarden.FillFrame = function(self, f,width,height)
 
     f.bar.bg = f.bar:CreateTexture(nil, "BORDER")
 	f.bar.bg:SetAllPoints(f.bar)
-	f.bar.bg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
+	f.bar.bg:SetTexture(texture)
 
     f.timeText = f.bar:CreateFontString();
-    f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
+    f.timeText:SetFont(LSM:Fetch("font", SpellgardenDB.timeFont), SpellgardenDB.timeFontSize)
+    -- f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
     f.timeText:SetJustifyH("RIGHT")
     f.timeText:SetVertexColor(1,1,1)
     f.timeText:SetPoint("TOPRIGHT", f.bar, "TOPRIGHT",-6,0)
     f.timeText:SetPoint("BOTTOMLEFT", f.bar, "BOTTOMLEFT",0,0)
+    f.timeText:SetTextColor(unpack(SpellgardenDB.textColor))
+
+    local spellFontSize = SpellgardenDB[unit].spellFontSize
 
     f.spellText = f.bar:CreateFontString();
-    f.spellText:SetFont("Fonts\\FRIZQT___CYR.TTF",height/2)
+    f.spellText:SetFont(LSM:Fetch("font", SpellgardenDB.spellFont), spellFontSize)
     f.spellText:SetWidth(width/4*3 -12)
     f.spellText:SetHeight(height/2+1)
     f.spellText:SetJustifyH("CENTER")
-    f.spellText:SetVertexColor(1,1,1)
+    f.spellText:SetTextColor(unpack(SpellgardenDB.textColor))
     f.spellText:SetPoint("LEFT", f.bar, "LEFT",6,0)
-    f.spellText:SetAlpha(0.5)
+    -- f.spellText:SetAlpha(0.5)
 
 
     f:SetScript("OnUpdate",TimerOnUpdate)
@@ -383,6 +421,8 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
     f:SetBackdrop(backdrop)
     f:SetBackdropColor(0, 0, 0, 0.7)
 
+    local texture = LSM:Fetch("statusbar", SpellgardenDB.barTexture)
+
     local ic = CreateFrame("Frame",nil,f)
     -- ic:SetPoint("TOPLEFT",f,"TOPLEFT", 0, 0)
     ic:SetPoint("CENTER",f,"CENTER", 0, 0)
@@ -393,37 +433,29 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
     ict:SetAllPoints(ic)
     f.icon = ict
 
-    f.stacktext = ic:CreateFontString(nil, "OVERLAY");
-    f.stacktext:SetFont("Fonts\\FRIZQT____CYR.TTF",10,"OUTLINE")
-    f.stacktext:SetHeight(ic:GetHeight())
-    f.stacktext:SetJustifyH("RIGHT")
-    f.stacktext:SetVertexColor(1,1,1)
-    f.stacktext:SetPoint("RIGHT", ic, "RIGHT",1,-5)
-
-
     f.bar = CreateFrame("Frame",nil,f)
     f.bar:SetFrameStrata("MEDIUM")
 
     local left = CreateFrame("StatusBar",nil,f.bar)
-    left:SetStatusBarTexture("Interface\\AddOns\\Spellgarden\\statusbar")
+    left:SetStatusBarTexture(texture)
     left:GetStatusBarTexture():SetDrawLayer("ARTWORK")
     left:SetHeight(height)
     left:SetWidth((width - height)/2 - 2)
     left:SetPoint("TOPLEFT", f.bar, "TOPLEFT",0,0)
     local leftbg = left:CreateTexture(nil, "BORDER")
     leftbg:SetAllPoints(left)
-    leftbg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
+    leftbg:SetTexture(texture)
     left.bg = leftbg
 
     local right = CreateFrame("StatusBar",nil,f.bar)
-    right:SetStatusBarTexture("Interface\\AddOns\\Spellgarden\\statusbar")
+    right:SetStatusBarTexture(texture)
     right:GetStatusBarTexture():SetDrawLayer("ARTWORK")
     right:SetHeight(height)
     right:SetWidth((width - height)/2 - 2)
     right:SetPoint("TOPRIGHT", f.bar, "TOPRIGHT",0,0)
     local rightbg = right:CreateTexture(nil, "BORDER")
     rightbg:SetAllPoints(right)
-    rightbg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
+    rightbg:SetTexture(texture)
     right.bg = rightbg
 
     f.bar.left = left
@@ -460,7 +492,7 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
 
     -- f.bar.bg = f.bar:CreateTexture(nil, "BORDER")
     -- f.bar.bg:SetAllPoints(f.bar)
-    -- f.bar.bg:SetTexture("Interface\\AddOns\\Spellgarden\\statusbar")
+    -- f.bar.bg:SetTexture(texture)
 
     f.timeText = f.bar:CreateFontString();
     f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
@@ -541,13 +573,13 @@ function Spellgarden:CreateNameplateCastbars()
                         bar:Hide()
                     else
                         table.insert(ordered_bars, bar)
-                        bar.bar:SetColor(unpack(highlightColor))
+                        bar.bar:SetColor(unpack(SpellgardenDB.highlightColor))
                     end
                 else
                     table.insert(ordered_bars, bar)
                     bar:Show()
                     if not SpellgardenDB.nameplateExcludeTarget then    
-                        local color = (bar.inverted and defaultChannelColor or defaultCastColor)
+                        local color = (bar.inverted and SpellgardenDB.channelColor or SpellgardenDB.castColor)
                         bar.bar:SetColor(unpack(color))
                     end
                 end
@@ -626,7 +658,7 @@ function Spellgarden:CreateNameplateCastbars()
 
     for i=1, MAX_NAMEPLATE_CASTBARS do 
         local f = CreateFrame("Frame", nil, npCastbarsHeader)
-        self:FillFrame(f, SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height)
+        self:FillFrame(f, SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height, "nameplates")
         -- self.bar:SetColor(unpack(nameplateBarColor))
         self:AddMore(f)
 
@@ -777,4 +809,358 @@ function Spellgarden.SlashCmd(msg)
         Spellgarden.Commands[k](v)
     end
 
+end
+
+
+
+
+function Spellgarden:Resize()
+
+    SpellgardenPlayer:Resize(SpellgardenDB.player.width, SpellgardenDB.player.height)
+    if SpellgardenTarget then
+        SpellgardenTarget:Resize(SpellgardenDB.target.width, SpellgardenDB.target.height)
+    end
+    for i, timer in ipairs(npCastbars) do
+        timer:Resize(SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height)
+    end
+end
+function Spellgarden:ResizeText()
+    SpellgardenPlayer:ResizeText(SpellgardenDB.player.spellFontSize)
+    if SpellgardenTarget then
+        SpellgardenTarget:ResizeText(SpellgardenDB.target.spellFontSize)
+    end
+    for i, timer in ipairs(npCastbars) do
+        timer:ResizeText(SpellgardenDB.nameplates.spellFontSize)
+    end
+end
+
+
+function Spellgarden:CreateGUI()
+    local opt = {
+        type = 'group',
+        name = "Spellgarden Settings",
+        order = 1,
+        args = {
+            unlock = {
+                name = "Unlock",
+                type = "execute",
+                desc = "Unlock anchor for dragging",
+                func = function() Spellgarden.Commands.unlock() end,
+                order = 1,
+            },
+            lock = {
+                name = "Lock",
+                type = "execute",
+                desc = "Lock anchor",
+                func = function() Spellgarden.Commands.lock() end,
+                order = 2,
+            },
+            resetToDefault = {
+                name = "Restore Defaults",
+                type = 'execute',
+                func = function()
+                    SpellgardenDB = {}
+                    SetupDefaults(SpellgardenDB, defaults)
+                    Spellgarden:Resize()
+                    Spellgarden:ResizeText()
+                end,
+                order = 3,
+            },
+            toggleGroup = {
+                        
+                type = "group",
+                guiInline = true,
+                name = " ",
+                order = 4,
+                args = {
+                    excludeTarget = {
+                        name = "Exclude Target",
+                        type = "toggle",
+                        order = 4,
+                        get = function(info) return SpellgardenDB.nameplateExcludeTarget end,
+                        set = function(info, v) Spellgarden.Commands.excludetarget() end
+                    },
+                    npCastbars = {
+                        name = "Nameplate Castbars",
+                        type = "toggle",
+                        order = 5,
+                        get = function(info) return SpellgardenDB.nameplateCastbars end,
+                        set = function(info, v) Spellgarden.Commands.nameplatebars() end
+                    },
+                    targetCastbar = {
+                        name = "Target Castbar",
+                        type = "toggle",
+                        order = 6,
+                        get = function(info) return SpellgardenDB.targetCastbar end,
+                        set = function(info, v) Spellgarden.Commands.targetcastbar() end
+                    },
+                },
+            },
+            anchors = {
+                type = "group",
+                name = " ",
+                guiInline = true,
+                order = 6,
+                args = {
+                    colorGroup = {
+                        type = "group",
+                        name = "",
+                        order = 1,
+                        args = {
+                            castColor = {
+                                name = "Cast Color",
+                                type = 'color',
+                                get = function(info)
+                                    local r,g,b = unpack(SpellgardenDB.castColor)
+                                    return r,g,b
+                                end,
+                                set = function(info, r, g, b)
+                                    SpellgardenDB.castColor = {r,g,b}
+                                end,
+                                order = 1,
+                            },
+                            channelColor = {
+                                name = "Channel Color",
+                                type = 'color',
+                                order = 2,
+                                get = function(info)
+                                    local r,g,b = unpack(SpellgardenDB.channelColor)
+                                    return r,g,b
+                                end,
+                                set = function(info, r, g, b)
+                                    SpellgardenDB.channelColor = {r,g,b}
+                                end,
+                            },
+                            highlightColor = {
+                                name = "Highlight Color",
+                                type = 'color',
+                                order = 3,
+                                get = function(info)
+                                    local r,g,b = unpack(SpellgardenDB.highlightColor)
+                                    return r,g,b
+                                end,
+                                set = function(info, r, g, b)
+                                    SpellgardenDB.highlightColor = {r,g,b}
+                                end,
+                            },
+                            textColor = {
+                                name = "Text Color & Alpha",
+                                type = 'color',
+                                hasAlpha = true,
+                                order = 6,
+                                get = function(info)
+                                    local r,g,b,a = unpack(SpellgardenDB.textColor)
+                                    return r,g,b,a
+                                end,
+                                set = function(info, r, g, b, a)
+                                    SpellgardenDB.textColor = {r,g,b, a}
+                                    Spellgarden:ResizeText()
+                                end,
+                            },
+                            texture = {
+                                type = "select",
+                                name = "Texture",
+                                order = 5,
+                                desc = "Set the statusbar texture.",
+                                get = function(info) return SpellgardenDB.barTexture end,
+                                set = function(info, value)
+                                    SpellgardenDB.barTexture = value
+                                    Spellgarden:Resize()
+                                end,
+                                values = LSM:HashTable("statusbar"),
+                                dialogControl = "LSM30_Statusbar",
+                            },
+                        },
+                    },
+                    barGroup = {
+                        type = "group",
+                        name = " ",
+                        order = 2,
+                        args = {
+                            
+                            playerWidth = {
+                                name = "Player Bar Width",
+                                type = "range",
+                                get = function(info) return SpellgardenDB.player.width end,
+                                set = function(info, v)
+                                    SpellgardenDB.player.width = tonumber(v)
+                                    Spellgarden:Resize()
+                                end,
+                                min = 30,
+                                max = 300,
+                                step = 1,
+                                order = 1,
+                            },
+                            playerHeight = {
+                                name = "Player Bar Height",
+                                type = "range",
+                                get = function(info) return SpellgardenDB.player.height end,
+                                set = function(info, v)
+                                    SpellgardenDB.player.height = tonumber(v)
+                                    Spellgarden:Resize()
+                                end,
+                                min = 10,
+                                max = 60,
+                                step = 1,
+                                order = 2,
+                            },
+                            playerFontSize = {
+                                name = "Player Font Size",
+                                type = "range",
+                                order = 3,
+                                get = function(info) return SpellgardenDB.player.spellFontSize end,
+                                set = function(info, v)
+                                    SpellgardenDB.player.spellFontSize = tonumber(v)
+                                    Spellgarden:ResizeText()
+                                end,
+                                min = 5,
+                                max = 50,
+                                step = 1,
+                            },
+
+                            targetWidth = {
+                                name = "Target Bar Width",
+                                type = "range",
+                                get = function(info) return SpellgardenDB.target.width end,
+                                set = function(info, v)
+                                    SpellgardenDB.target.width = tonumber(v)
+                                    Spellgarden:Resize()
+                                end,
+                                min = 30,
+                                max = 300,
+                                step = 1,
+                                order = 4,
+                            },
+                            targetHeight = {
+                                name = "Target Bar Height",
+                                type = "range",
+                                get = function(info) return SpellgardenDB.target.height end,
+                                set = function(info, v)
+                                    SpellgardenDB.target.height = tonumber(v)
+                                    Spellgarden:Resize()
+                                end,
+                                min = 10,
+                                max = 60,
+                                step = 1,
+                                order = 5,
+                            },
+                            targetFontSize = {
+                                name = "Target Font Size",
+                                type = "range",
+                                order = 6,
+                                get = function(info) return SpellgardenDB.target.spellFontSize end,
+                                set = function(info, v)
+                                    SpellgardenDB.target.spellFontSize = tonumber(v)
+                                    Spellgarden:ResizeText()
+                                end,
+                                min = 5,
+                                max = 50,
+                                step = 1,
+                            },
+
+                            nameplatesWidth = {
+                                name = "Nameplates Bar Width",
+                                type = "range",
+                                get = function(info) return SpellgardenDB.nameplates.width end,
+                                set = function(info, v)
+                                    SpellgardenDB.nameplates.width = tonumber(v)
+                                    Spellgarden:Resize()
+                                end,
+                                min = 30,
+                                max = 300,
+                                step = 1,
+                                order = 7,
+                            },
+                            nameplatesHeight = {
+                                name = "Nameplates Bar Height",
+                                type = "range",
+                                get = function(info) return SpellgardenDB.nameplates.height end,
+                                set = function(info, v)
+                                    SpellgardenDB.nameplates.height = tonumber(v)
+                                    Spellgarden:Resize()
+                                end,
+                                min = 10,
+                                max = 60,
+                                step = 1,
+                                order = 8,
+                            },
+                            nameplateFontSize = {
+                                name = "Enemies Font Size",
+                                type = "range",
+                                order = 9,
+                                get = function(info) return SpellgardenDB.nameplates.spellFontSize end,
+                                set = function(info, v)
+                                    SpellgardenDB.nameplates.spellFontSize = tonumber(v)
+                                    Spellgarden:ResizeText()
+                                end,
+                                min = 5,
+                                max = 50,
+                                step = 1,
+                            },
+                            
+                        },
+                    },
+
+                    textGroup = {
+                        
+                        type = "group",
+                        name = " ",
+                        order = 3,
+                        args = {
+
+                            font1 = {
+                                type = "select",
+                                name = "Spell Font",
+                                order = 1,
+                                desc = "Set the statusbar texture.",
+                                get = function(info) return SpellgardenDB.spellFont end,
+                                set = function(info, value)
+                                    SpellgardenDB.spellFont = value
+                                    Spellgarden:ResizeText()
+                                end,
+                                values = LSM:HashTable("font"),
+                                dialogControl = "LSM30_Font",
+                            },
+                            
+                            font2 = {
+                                type = "select",
+                                name = "Time Font",
+                                order = 3,
+                                desc = "Set the statusbar texture.",
+                                get = function(info) return SpellgardenDB.timeFont end,
+                                set = function(info, value)
+                                    SpellgardenDB.timeFont = value
+                                    Spellgarden:ResizeText()
+                                end,
+                                values = LSM:HashTable("font"),
+                                dialogControl = "LSM30_Font",
+                            },
+                            font2Size = {
+                                name = "Time Font Size",
+                                type = "range",
+                                order = 4,
+                                get = function(info) return SpellgardenDB.timeFontSize end,
+                                set = function(info, v)
+                                    SpellgardenDB.timeFontSize = tonumber(v)
+                                    Spellgarden:ResizeText()
+                                end,
+                                min = 5,
+                                max = 50,
+                                step = 1,
+                            },
+                        },
+                    },
+                    
+                },
+            }, --
+        },
+    }
+
+    local AceConfigRegistry = LibStub("AceConfigRegistry-3.0")
+    AceConfigRegistry:RegisterOptionsTable("SpellgardenOptions", opt)
+
+    local AceConfigDialog = LibStub("AceConfigDialog-3.0")
+    local panelFrame = AceConfigDialog:AddToBlizOptions("SpellgardenOptions", "Spellgarden")
+
+    return panelFrame
 end

@@ -1,7 +1,15 @@
-## Interface: 60000
+## Interface: 70300
 ## Title: Spellgarden
 ## Author: d87
-## Notes: Castbars
+## Notes: Castbar addon
 ## SavedVariables: SpellgardenDB
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceGUI-3.0\AceGUI-3.0.xml
+Libs\AceConfig-3.0\AceConfig-3.0.xml
+Libs\LibSharedMedia-3.0\lib.xml
+Libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
+
 castbar.lua
 badspells.lua
