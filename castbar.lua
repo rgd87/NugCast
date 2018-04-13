@@ -44,7 +44,7 @@ local defaults = {
     target = {
         width = 250,
         height = 27,
-        spellFontSize = 10,
+        spellFontSize = 13,
     },
     nameplates = {
         width = 180,
