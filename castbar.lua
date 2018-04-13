@@ -859,8 +859,9 @@ function Spellgarden:CreateGUI()
                 name = "Restore Defaults",
                 type = 'execute',
                 func = function()
-                    SpellgardenDB = {}
-                    SetupDefaults(SpellgardenDB, defaults)
+                    _G.SpellgardenDB = {}
+                    SetupDefaults(_G.SpellgardenDB, defaults)
+                    SpellgardenDB = _G.SpellgardenDB
                     Spellgarden:Resize()
                     Spellgarden:ResizeText()
                 end,
