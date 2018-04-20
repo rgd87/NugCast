@@ -162,8 +162,11 @@ function Spellgarden:PLAYER_LOGOUT()
     RemoveDefaults(SpellgardenDB, defaults)
 end
 
-local TimerOnUpdate = function(self,time)
-    local beforeEnd = self.endTime - GetTime()
+local TimerOnUpdate = function(self, elapsed)
+    local v = self.elapsed + elapsed
+    local beforeEnd = self.endTime - (v+self.startTime)
+    self.elapsed = v
+
     local val
     if self.inverted then val = self.startTime + beforeEnd
     else val = self.endTime - beforeEnd end
@@ -230,7 +233,8 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         self.castID = castID
         self.startTime = startTime / 1000
         self.endTime = endTime / 1000
-        self.bar:SetMinMaxValues(self.startTime,self.endTime)
+        self.bar:SetMinMaxValues(self.startTime, self.endTime)
+        self.elapsed = GetTime() - self.startTime
         self.icon:SetTexture(texture)
         self.spellText:SetText(name)
         if self.unit ~= "player" and Spellgarden.badSpells[name] then
