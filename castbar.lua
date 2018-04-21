@@ -191,7 +191,7 @@ function Spellgarden.UNIT_SPELLCAST_CHANNEL_START(self,event,unit,spell)
     if unit ~= self.unit then return end
     local name, subText, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitChannelInfo(unit)
     self.inverted = true
-    self:UpdateCastingInfo(name,texture,startTime,endTime,castID)
+    self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
 Spellgarden.UNIT_SPELLCAST_CHANNEL_UPDATE = Spellgarden.UNIT_SPELLCAST_CHANNEL_START
 
