@@ -137,6 +137,7 @@ function Spellgarden:PLAYER_LOGIN()
 
     if SpellgardenDB.nameplateCastbars then
         local npheader = Spellgarden:CreateNameplateCastbars()
+        SpellgardenPlayerNameplateHeader = npheader
         local nameplates_anchor = self:CreateAnchor(SpellgardenDB.anchors["nameplates"])
         npheader:SetPoint("TOPLEFT", nameplates_anchor,"BOTTOMRIGHT",0,0)
         -- npheader:SetPoint("CENTER", UIParent, "CENTER",0,0)
@@ -172,7 +173,10 @@ local TimerOnUpdate = function(self, elapsed)
     else val = self.endTime - beforeEnd end
     self.bar:SetValue(val)
     self.timeText:SetFormattedText("%.1f",beforeEnd)
-    if beforeEnd <= 0 then self:Hide() end
+    if beforeEnd <= 0 then
+        if self.Deactivate then self:Deactivate() end
+        self:Hide()
+    end
 end
 
 local defaultCastColor = { 0.6, 0, 1 }
@@ -531,6 +535,7 @@ local function FindFreeCastbar()
         end
     end
 end
+Spellgarden.FindFreeCastbar = FindFreeCastbar
 
 
 local ordered_bars = {}
@@ -760,11 +765,27 @@ Spellgarden.Commands = {
         for unit, anchor in pairs(anchors) do
             anchor:Show()
         end
+        local now = GetTime() * 1000
+        SpellgardenPlayer:UpdateCastingInfo("Player","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+        SpellgardenTarget:UpdateCastingInfo("Target","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+        for i=1, 3 do
+            local castbar = Spellgarden.FindFreeCastbar()
+            castbar.unit = "nameplate"..i
+            castbar:UpdateCastingInfo("Nameplate"..i,"Interface\\Icons\\inv_misc_questionmark",now - 15000, now + 15000, 1, true)
+        end
+        SpellgardenPlayerNameplateHeader:Arrange()
     end,
     ["lock"] = function()
         for unit, anchor in pairs(anchors) do
             anchor:Hide()
         end
+        SpellgardenPlayer:Hide()
+        SpellgardenTarget:Hide()
+        for _, castbar in ipairs(npCastbars) do
+            castbar:Deactivate()
+            castbar:Hide()
+        end
+        SpellgardenPlayerNameplateHeader:Arrange()
     end,
     ["nameplatebars"] = function()
         SpellgardenDB.nameplateCastbars = not SpellgardenDB.nameplateCastbars
