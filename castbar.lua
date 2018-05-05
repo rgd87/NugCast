@@ -273,6 +273,8 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
     f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
     f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
     f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    -- f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
+    -- f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
     f:SetScript("OnEvent", function(self, event, ...)
         return Spellgarden[event](self, event, ...)
     end)
@@ -888,16 +890,26 @@ function Spellgarden:CreateGUI()
                     npCastbars = {
                         name = "Nameplate Castbars",
                         type = "toggle",
+                        confirm = true,
+						confirmText = "Warning: Requires UI reloading.",
                         order = 5,
                         get = function(info) return SpellgardenDB.nameplateCastbars end,
-                        set = function(info, v) Spellgarden.Commands.nameplatebars() end
+                        set = function(info, v)
+                            SpellgardenDB.nameplateCastbars = not SpellgardenDB.nameplateCastbars
+                            ReloadUI()
+                        end
                     },
                     targetCastbar = {
                         name = "Target Castbar",
                         type = "toggle",
+                        confirm = true,
+						confirmText = "Warning: Requires UI reloading.",
                         order = 6,
                         get = function(info) return SpellgardenDB.targetCastbar end,
-                        set = function(info, v) Spellgarden.Commands.targetcastbar() end
+                        set = function(info, v)
+                            SpellgardenDB.targetCastbar = not SpellgardenDB.targetCastbar
+                            ReloadUI()
+                        end
                     },
                 },
             },
