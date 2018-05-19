@@ -16,24 +16,6 @@ local npCastbarsByGUID = {}
 local MAX_NAMEPLATE_CASTBARS = 7
 local anchors = {}
 
--- interrupts = {
---     [47528]  = 15, --Mind Freeze
---     [106839] = 15, --Skull Bash
---     [78675]  = 60, --Solar Beam
---     [183752] = 15, --Consume Magic
---     [147362] = 24, --Counter Shot
---     [187707] = 15, --Muzzle
---     [2139]   = 24, --Counter Spell
---     [116705] = 15, --Spear Hand Strike
---     [96231]  = 15, --Rebuke
---     [15487]  = 45, --Silence
---     [1766]   = 15, --Kick
---     [57994] = 12, --Wind Shear
---     [6552]  = 15, --Pummel
---     [171140] = 24, --Shadow Lock
---     [171138] = 24, --Shadow Lock if used from pet bar    
--- }
-
 local defaults = {
     anchors = {
         player = {
