@@ -1,5 +1,9 @@
 Spellgarden = CreateFrame("Frame",nil,UIParent)
 
+local Spellgarden = _G.Spellgarden
+local UnitCastingInfo = UnitCastingInfo
+local UnitChannelInfo = UnitChannelInfo
+
 local SpellgardenDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
@@ -11,6 +15,24 @@ local npCastbarsByUnit = {}
 local npCastbarsByGUID = {}
 local MAX_NAMEPLATE_CASTBARS = 7
 local anchors = {}
+
+-- interrupts = {
+--     [47528]  = 15, --Mind Freeze
+--     [106839] = 15, --Skull Bash
+--     [78675]  = 60, --Solar Beam
+--     [183752] = 15, --Consume Magic
+--     [147362] = 24, --Counter Shot
+--     [187707] = 15, --Muzzle
+--     [2139]   = 24, --Counter Spell
+--     [116705] = 15, --Spear Hand Strike
+--     [96231]  = 15, --Rebuke
+--     [15487]  = 45, --Silence
+--     [1766]   = 15, --Kick
+--     [57994] = 12, --Wind Shear
+--     [6552]  = 15, --Pummel
+--     [171140] = 24, --Shadow Lock
+--     [171138] = 24, --Shadow Lock if used from pet bar    
+-- }
 
 local defaults = {
     anchors = {
@@ -264,8 +286,13 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
 
     -- if unit == "player" then
         -- self:MakeDoubleCastbar(f,width,height)
+
+    local addSpark
+    if unit == "player" or unit == "target" then
+        addSpark = true
+    end
     -- else
-        self:FillFrame(f, width,height, unit)
+        self:FillFrame(f, width,height, unit, addSpark)
     -- end
 
     f:Hide()
@@ -285,6 +312,40 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
     f.UpdateCastingInfo = UpdateCastingInfo
 
     return f
+end
+
+Spellgarden.AddSpark = function(self, bar)
+    -- local bar = f.bar
+
+    local spark = bar:CreateTexture(nil, "ARTWORK", nil, 4)
+    spark:SetBlendMode("ADD")
+    spark:SetTexture([[Interface\AddOns\Spellgarden\spark.tga]])
+    spark:SetSize(bar:GetHeight()*2, bar:GetHeight())
+
+    spark:SetPoint("CENTER", bar, "TOP",0,0)
+    -- spark:SetVertexColor(unpack(colors.health))
+    bar.spark = spark
+
+    local OriginalSetValue = bar.SetValue
+    bar.SetValue = function(self, v)
+        local min, max = self:GetMinMaxValues()
+        local total = max-min
+        local p
+        if total == 0 then
+            p = 0
+        else
+            p = (v-min)/(max-min)
+        end
+        local len = p*self:GetWidth()
+        self.spark:SetPoint("CENTER", self, "LEFT", len, 0)
+        return OriginalSetValue(self, v)
+    end
+
+    local OriginalSetStatusBarColor = bar.SetStatusBarColor
+    bar.SetStatusBarColor = function(self, r,g,b,a)
+        self.spark:SetVertexColor(r,g,b,a)
+        return OriginalSetStatusBarColor(self, r,g,b,a)
+    end
 end
 
 Spellgarden.AddMore = function(self, f)
@@ -346,7 +407,7 @@ local ResizeTextFunc = function(self, spellFontSize)
     self.spellText:SetTextColor(unpack(SpellgardenDB.textColor))
 end
 
-Spellgarden.FillFrame = function(self, f,width,height, unit)
+Spellgarden.FillFrame = function(self, f,width,height, unit, spark)
     local backdrop = {
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
         insets = {left = -2, right = -2, top = -2, bottom = -2},
@@ -377,12 +438,16 @@ Spellgarden.FillFrame = function(self, f,width,height, unit)
     f.bar:SetWidth(width - height - 1)
     f.bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
 
+    if spark then
+        self:AddSpark(f.bar)
+    end
+
     f.Resize = ResizeFunc
 
     f.ResizeText = ResizeTextFunc
 
 
-    local m = 0.5
+    local m = 0.4
     f.bar.SetColor = function(self, r,g,b)
         self:SetStatusBarColor(r,g,b)
         self.bg:SetVertexColor(r*m,g*m,b*m)
