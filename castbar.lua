@@ -374,6 +374,15 @@ local ResizeFunc = function(self, width, height)
     self:SetHeight(height)
     self.bar:SetWidth(width - height - 1)
     self.bar:SetHeight(height)
+    if self.shield then
+        self.shield:SetWidth(height*1.8)
+        self.shield:SetHeight(height*1.8)
+    end
+    if self.bar.spark then
+        local spark = self.bar.spark
+        spark:SetWidth(height*2)
+        spark:SetHeight(height)
+    end
     self.spellText:SetWidth(width/4*3 -12)
     self.spellText:SetHeight(height/2+1)
     local ic = self.icon:GetParent()
@@ -1072,7 +1081,7 @@ function Spellgarden:CreateGUI()
                                     Spellgarden:Resize()
                                 end,
                                 min = 30,
-                                max = 300,
+                                max = 1000,
                                 step = 1,
                                 order = 1,
                             },
@@ -1085,7 +1094,7 @@ function Spellgarden:CreateGUI()
                                     Spellgarden:Resize()
                                 end,
                                 min = 10,
-                                max = 60,
+                                max = 100,
                                 step = 1,
                                 order = 2,
                             },
@@ -1112,7 +1121,7 @@ function Spellgarden:CreateGUI()
                                     Spellgarden:Resize()
                                 end,
                                 min = 30,
-                                max = 300,
+                                max = 1000,
                                 step = 1,
                                 order = 4,
                             },
@@ -1125,7 +1134,7 @@ function Spellgarden:CreateGUI()
                                     Spellgarden:Resize()
                                 end,
                                 min = 10,
-                                max = 60,
+                                max = 100,
                                 step = 1,
                                 order = 5,
                             },
