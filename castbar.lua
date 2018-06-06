@@ -188,30 +188,30 @@ local defaultChannelColor = {200/255,50/255,95/255 }
 local highlightColor = { 206/255, 4/256, 56/256 }
 local coloredSpells = {}
 
-function Spellgarden.UNIT_SPELLCAST_START(self,event,unit,spell)
+function Spellgarden.UNIT_SPELLCAST_START(self,event,unit)
     if unit ~= self.unit then return end
-    local name, subText, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
+    local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
     self.inverted = false
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
 Spellgarden.UNIT_SPELLCAST_DELAYED = Spellgarden.UNIT_SPELLCAST_START
-function Spellgarden.UNIT_SPELLCAST_CHANNEL_START(self,event,unit,spell)
+function Spellgarden.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
-    local name, subText, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitChannelInfo(unit)
+    local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitChannelInfo(unit)
     self.inverted = true
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
 Spellgarden.UNIT_SPELLCAST_CHANNEL_UPDATE = Spellgarden.UNIT_SPELLCAST_CHANNEL_START
 
 
-function Spellgarden.UNIT_SPELLCAST_STOP(self, event, unit, spell)
+function Spellgarden.UNIT_SPELLCAST_STOP(self, event, unit)
     if unit ~= self.unit then return end
     if self.Deactivate then
         self:Deactivate()
     end
     self:Hide()
 end
-function Spellgarden.UNIT_SPELLCAST_FAILED(self, event, unit, spell, _,castID)
+function Spellgarden.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
     if unit ~= self.unit then return end
     if self.castID == castID then Spellgarden.UNIT_SPELLCAST_STOP(self, event, unit, spell) end
 end
