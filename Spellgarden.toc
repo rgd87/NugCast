@@ -1,4 +1,4 @@
-## Interface: 70300
+## Interface: 80000
 ## Title: Spellgarden
 ## Author: d87
 ## Notes: Castbar addon
