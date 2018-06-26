@@ -1,19 +1,19 @@
-Spellgarden = CreateFrame("Frame",nil,UIParent)
+NugCast = CreateFrame("Frame",nil,UIParent)
 
-local Spellgarden = _G.Spellgarden
+local NugCast = _G.NugCast
 local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
 
-local SpellgardenDB
+local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
 
-LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\Spellgarden\statusbar.tga]])
+LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCastBar\statusbar.tga]])
 
 local npCastbars = {}
 local npCastbarsByUnit = {}
 local npCastbarsByGUID = {}
-local MAX_NAMEPLATE_CASTBARS = 7
+local MAX_NAMEPLATE_CASTBARS = 4
 local anchors = {}
 
 local defaults = {
@@ -31,6 +31,13 @@ local defaults = {
             to = "CENTER",
             x = -120,
             y = -100,
+        },
+        focus = {
+            point = "CENTER",
+            parent = "UIParent",
+            to = "CENTER",
+            x = -120,
+            y = 0,
         },
         nameplates = {
             point = "CENTER",
@@ -50,6 +57,9 @@ local defaults = {
         height = 27,
         spellFontSize = 13,
     },
+    focus = {
+        spellFontSize = 13,
+    },
     nameplates = {
         width = 180,
         height = 18,
@@ -60,6 +70,7 @@ local defaults = {
     timeFont = "Friz Quadrata TT",
     timeFontSize = 8,
     targetCastbar = true,
+    focusCastbar = true,
     textColor = {1,1,1,0.5},
     castColor = { 0.6, 0, 1 },
     channelColor = {200/255,50/255,95/255 },
@@ -101,70 +112,78 @@ local function RemoveDefaults(t, defaults)
 end
 
 
-Spellgarden:RegisterEvent("PLAYER_LOGIN")
-Spellgarden:RegisterEvent("PLAYER_LOGOUT")
-Spellgarden:SetScript("OnEvent", function(self, event, ...)
+NugCast:RegisterEvent("PLAYER_LOGIN")
+NugCast:RegisterEvent("PLAYER_LOGOUT")
+NugCast:SetScript("OnEvent", function(self, event, ...)
     return self[event](self, event, ...)
 end)
 
-function Spellgarden:PLAYER_LOGIN()
-    _G.SpellgardenDB = _G.SpellgardenDB or {}
-    SpellgardenDB = _G.SpellgardenDB
-    SetupDefaults(SpellgardenDB, defaults)
+function NugCast:PLAYER_LOGIN()
+    _G.NugCastDB = _G.NugCastDB or {}
+    NugCastDB = _G.NugCastDB
+    SetupDefaults(NugCastDB, defaults)
 
-    local player = Spellgarden:SpawnCastBar("player", SpellgardenDB.player.width, SpellgardenDB.player.height)
+    local player = NugCast:SpawnCastBar("player", NugCastDB.player.width, NugCastDB.player.height)
     player.spellText:Hide()
     player.timeText:Hide()
     CastingBarFrame:UnregisterAllEvents()
-    SpellgardenPlayer = player
+    NugCastPlayer = player
 
-    local player_anchor = self:CreateAnchor(SpellgardenDB.anchors["player"])
+    local player_anchor = self:CreateAnchor(NugCastDB.anchors["player"])
     player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
     anchors["player"] = player_anchor
 
-    if SpellgardenDB.targetCastbar then
-        local target = Spellgarden:SpawnCastBar("target", SpellgardenDB.target.width, SpellgardenDB.target.height)
+    if NugCastDB.targetCastbar then
+        local target = NugCast:SpawnCastBar("target", NugCastDB.target.width, NugCastDB.target.height)
         target:RegisterEvent("PLAYER_TARGET_CHANGED")
-        Spellgarden:AddMore(target)
-        SpellgardenTarget = target
+        NugCast:AddMore(target)
+        NugCastTarget = target
 
-        local target_anchor = self:CreateAnchor(SpellgardenDB.anchors["target"])
+        local target_anchor = self:CreateAnchor(NugCastDB.anchors["target"])
         target:SetPoint("TOPLEFT",target_anchor,"BOTTOMRIGHT",0,0)
         anchors["target"] = target_anchor
     end
 
-    -- local focus = Spellgarden:SpawnCastBar("focus",200,25)
-    -- Spellgarden:AddMore(focus)
+    if NugCastDB.focusCastbar then
+        local focus = NugCast:SpawnCastBar("focus", NugCastDB.target.width, NugCastDB.target.height)
+        focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
+        NugCast:AddMore(focus)
+        NugCastFocus = focus
+
+        local focus_anchor = self:CreateAnchor(NugCastDB.anchors["focus"])
+        focus:SetPoint("TOPLEFT",focus_anchor,"BOTTOMRIGHT",0,0)
+        anchors["focus"] = focus_anchor
+    end
     -- if oUF_Focus then focus:SetPoint("TOPRIGHT",oUF_Focus,"BOTTOMRIGHT", 0,-5)
     -- else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
 
 
-    if SpellgardenDB.nameplateCastbars then
-        local npheader = Spellgarden:CreateNameplateCastbars()
-        SpellgardenPlayerNameplateHeader = npheader
-        local nameplates_anchor = self:CreateAnchor(SpellgardenDB.anchors["nameplates"])
+    if NugCastDB.nameplateCastbars then
+        local npheader = NugCast:CreateNameplateCastbars()
+        NugCastPlayerNameplateHeader = npheader
+        local nameplates_anchor = self:CreateAnchor(NugCastDB.anchors["nameplates"])
         npheader:SetPoint("TOPLEFT", nameplates_anchor,"BOTTOMRIGHT",0,0)
         -- npheader:SetPoint("CENTER", UIParent, "CENTER",0,0)
         anchors["nameplates"] = nameplates_anchor
     end
 
 
-    SLASH_SPELLGARDEN1= "/spellgarden"
-    SLASH_SPELLGARDEN2= "/spg"
-    SlashCmdList["SPELLGARDEN"] = Spellgarden.SlashCmd
+    SLASH_NUGCAST1= "/nugcast"
+    SLASH_NUGCAST1= "/nugcastbar"
+    SlashCmdList["NUGCAST"] = NugCast.SlashCmd
 
     local f = CreateFrame('Frame', nil, InterfaceOptionsFrame)
     f:SetScript('OnShow', function(self)
         self:SetScript('OnShow', nil)
 
-        if not Spellgarden.optionsPanel then
-            Spellgarden.optionsPanel = Spellgarden:CreateGUI()
+        if not NugCast.optionsPanel then
+            NugCast.optionsPanel = NugCast:CreateGUI()
         end
     end)
 end
 
-function Spellgarden:PLAYER_LOGOUT()
-    RemoveDefaults(SpellgardenDB, defaults)
+function NugCast:PLAYER_LOGOUT()
+    RemoveDefaults(NugCastDB, defaults)
 end
 
 local TimerOnUpdate = function(self, elapsed)
@@ -188,51 +207,57 @@ local defaultChannelColor = {200/255,50/255,95/255 }
 local highlightColor = { 206/255, 4/256, 56/256 }
 local coloredSpells = {}
 
-function Spellgarden.UNIT_SPELLCAST_START(self,event,unit)
+function NugCast.UNIT_SPELLCAST_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
     self.inverted = false
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
-Spellgarden.UNIT_SPELLCAST_DELAYED = Spellgarden.UNIT_SPELLCAST_START
-function Spellgarden.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
+NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
+function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitChannelInfo(unit)
     self.inverted = true
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
-Spellgarden.UNIT_SPELLCAST_CHANNEL_UPDATE = Spellgarden.UNIT_SPELLCAST_CHANNEL_START
+NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.UNIT_SPELLCAST_CHANNEL_START
 
 
-function Spellgarden.UNIT_SPELLCAST_STOP(self, event, unit)
+function NugCast.UNIT_SPELLCAST_STOP(self, event, unit)
     if unit ~= self.unit then return end
     if self.Deactivate then
         self:Deactivate()
     end
     self:Hide()
 end
-function Spellgarden.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
+function NugCast.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
     if unit ~= self.unit then return end
-    if self.castID == castID then Spellgarden.UNIT_SPELLCAST_STOP(self, event, unit, spell) end
+    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit, spell) end
 end
-Spellgarden.UNIT_SPELLCAST_INTERRUPTED = Spellgarden.UNIT_SPELLCAST_STOP
-Spellgarden.UNIT_SPELLCAST_CHANNEL_STOP = Spellgarden.UNIT_SPELLCAST_STOP
+NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_STOP
+NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.UNIT_SPELLCAST_STOP
 
 
-function Spellgarden.UNIT_SPELLCAST_INTERRUPTIBLE(self,event,unit)
+function NugCast.UNIT_SPELLCAST_INTERRUPTIBLE(self,event,unit)
     if unit ~= self.unit then return end
     self.shield:Hide()
 end
-function Spellgarden.UNIT_SPELLCAST_NOT_INTERRUPTIBLE(self,event,unit)
+function NugCast.UNIT_SPELLCAST_NOT_INTERRUPTIBLE(self,event,unit)
     if unit ~= self.unit then return end
     self.shield:Show()
 end
 
 
-function Spellgarden.PLAYER_TARGET_CHANGED(self,event)
-    if UnitCastingInfo("target") then return Spellgarden.UNIT_SPELLCAST_START(self,event,"target") end
-    if UnitChannelInfo("target") then return Spellgarden.UNIT_SPELLCAST_CHANNEL_START(self,event,"target") end
-    Spellgarden.UNIT_SPELLCAST_STOP(self,event,"target")
+function NugCast.PLAYER_TARGET_CHANGED(self,event)
+    if UnitCastingInfo("target") then return NugCast.UNIT_SPELLCAST_START(self,event,"target") end
+    if UnitChannelInfo("target") then return NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,"target") end
+    NugCast.UNIT_SPELLCAST_STOP(self,event,"target")
+end
+
+function NugCast.PLAYER_FOCUS_CHANGED(self,event)
+    if UnitCastingInfo("focus") then return NugCast.UNIT_SPELLCAST_START(self,event,"focus") end
+    if UnitChannelInfo("focus") then return NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,"focus") end
+    NugCast.UNIT_SPELLCAST_STOP(self,event,"focus")
 end
 
 
@@ -245,11 +270,11 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         self.elapsed = GetTime() - self.startTime
         self.icon:SetTexture(texture)
         self.spellText:SetText(name)
-        if self.unit ~= "player" and Spellgarden.badSpells[name] then
-            if self.shine:IsPlaying() then self.shine:Stop() end
-            self.shine:Play()
-        end
-        local color = coloredSpells[name] or (self.inverted and SpellgardenDB.channelColor or SpellgardenDB.castColor)
+        -- if self.unit ~= "player" and NugCast.badSpells[name] then
+        --     if self.shine:IsPlaying() then self.shine:Stop() end
+        --     self.shine:Play()
+        -- end
+        local color = coloredSpells[name] or (self.inverted and NugCastDB.channelColor or NugCastDB.castColor)
         self.bar:SetColor(unpack(color))
         self.isActive = true
         self:Show()
@@ -262,7 +287,7 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
             end
         end
     end
-function Spellgarden.SpawnCastBar(self,unit,width,height)
+function NugCast.SpawnCastBar(self,unit,width,height)
     local f = CreateFrame("Frame",nil,UIParent)
     f.unit = unit
 
@@ -289,25 +314,40 @@ function Spellgarden.SpawnCastBar(self,unit,width,height)
     -- f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
     -- f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
     f:SetScript("OnEvent", function(self, event, ...)
-        return Spellgarden[event](self, event, ...)
+        return NugCast[event](self, event, ...)
     end)
     f.UpdateCastingInfo = UpdateCastingInfo
 
     return f
 end
 
-Spellgarden.AddSpark = function(self, bar)
+local OnValueChanged = function(self, v)
+    local min, max = self:GetMinMaxValues()
+    local total = max-min
+    local p
+    if total == 0 then
+        p = 0
+    else
+        p = (v-min)/(max-min)
+    end
+    local len = p*self:GetWidth()
+    -- OriginalSetValue(self, v)
+    self.spark:SetPoint("CENTER", self, "LEFT", len, 0)
+end
+
+NugCast.AddSpark = function(self, bar)
     -- local bar = f.bar
 
     local spark = bar:CreateTexture(nil, "ARTWORK", nil, 4)
     spark:SetBlendMode("ADD")
-    spark:SetTexture([[Interface\AddOns\Spellgarden\spark.tga]])
+    spark:SetTexture([[Interface\AddOns\NugCastBar\spark.tga]])
     spark:SetSize(bar:GetHeight()*2, bar:GetHeight())
 
-    spark:SetPoint("CENTER", bar, "TOP",0,0)
+    -- spark:SetPoint("CENTER", bar, "LEFT",0,0)
     -- spark:SetVertexColor(unpack(colors.health))
     bar.spark = spark
 
+    -- bar:SetScript("OnValueChanged", OnValueChanged)
     local OriginalSetValue = bar.SetValue
     bar.SetValue = function(self, v)
         local min, max = self:GetMinMaxValues()
@@ -319,8 +359,8 @@ Spellgarden.AddSpark = function(self, bar)
             p = (v-min)/(max-min)
         end
         local len = p*self:GetWidth()
+        OriginalSetValue(self, v)
         self.spark:SetPoint("CENTER", self, "LEFT", len, 0)
-        return OriginalSetValue(self, v)
     end
 
     local OriginalSetStatusBarColor = bar.SetStatusBarColor
@@ -330,7 +370,7 @@ Spellgarden.AddSpark = function(self, bar)
     end
 end
 
-Spellgarden.AddMore = function(self, f)
+NugCast.AddMore = function(self, f)
     f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
     f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
     local height = f:GetHeight()
@@ -351,22 +391,22 @@ Spellgarden.AddMore = function(self, f)
     at:SetPoint("CENTER",f.icon,"CENTER",0,0)
     at:SetAlpha(0)
 
-    local sag = at:CreateAnimationGroup()
-    local sa1 = sag:CreateAnimation("Alpha")
-    sa1:SetToAlpha(1)
-    sa1:SetDuration(0.3)
-    sa1:SetOrder(1)
-    local sa2 = sag:CreateAnimation("Alpha")
-    sa2:SetToAlpha(0)
-    sa2:SetDuration(0.5)
-    sa2:SetSmoothing("OUT")
-    sa2:SetOrder(2)
+    -- local sag = at:CreateAnimationGroup()
+    -- local sa1 = sag:CreateAnimation("Alpha")
+    -- sa1:SetToAlpha(1)
+    -- sa1:SetDuration(0.3)
+    -- sa1:SetOrder(1)
+    -- local sa2 = sag:CreateAnimation("Alpha")
+    -- sa2:SetToAlpha(0)
+    -- sa2:SetDuration(0.5)
+    -- sa2:SetSmoothing("OUT")
+    -- sa2:SetOrder(2)
 
-    f.shine = sag
+    -- f.shine = sag
 end
 
 local ResizeFunc = function(self, width, height)
-    local texture = LSM:Fetch("statusbar", SpellgardenDB.barTexture)
+    local texture = LSM:Fetch("statusbar", NugCastDB.barTexture)
     self.bar:SetStatusBarTexture(texture)
     self.bar.bg:SetTexture(texture)
 
@@ -391,14 +431,16 @@ local ResizeFunc = function(self, width, height)
 end
 
 local ResizeTextFunc = function(self, spellFontSize)
-    self.timeText:SetFont(LSM:Fetch("font", SpellgardenDB.timeFont), SpellgardenDB.timeFontSize)
-    self.timeText:SetTextColor(unpack(SpellgardenDB.textColor))
+    self.timeText:SetFont(LSM:Fetch("font", NugCastDB.timeFont), NugCastDB.timeFontSize)
+    self.timeText:SetTextColor(unpack(NugCastDB.textColor))
 
-    self.spellText:SetFont(LSM:Fetch("font", SpellgardenDB.spellFont), spellFontSize)
-    self.spellText:SetTextColor(unpack(SpellgardenDB.textColor))
+    self.spellText:SetFont(LSM:Fetch("font", NugCastDB.spellFont), spellFontSize)
+    self.spellText:SetTextColor(unpack(NugCastDB.textColor))
 end
 
-Spellgarden.FillFrame = function(self, f,width,height, unit, spark)
+
+
+NugCast.FillFrame = function(self, f,width,height, unit, spark)
     local backdrop = {
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
         insets = {left = -2, right = -2, top = -2, bottom = -2},
@@ -419,12 +461,17 @@ Spellgarden.FillFrame = function(self, f,width,height, unit, spark)
     ict:SetAllPoints(ic)
     f.icon = ict
 
-    local texture = LSM:Fetch("statusbar", SpellgardenDB.barTexture)
+    local texture = LSM:Fetch("statusbar", NugCastDB.barTexture)
 
-    f.bar = CreateFrame("StatusBar",nil,f)
+    if not spark then
+        f.bar = CreateFrame("StatusBar",nil,f)
+    else
+        -- no matter what StatusBar value is never synced with Spark on fast casts, as if delayed by a single frame
+        -- so i'm making my own status bar with texcoord
+        f.bar = self:CreateHorizontalBar(nil,f)
+    end
     f.bar:SetFrameStrata("MEDIUM")
     f.bar:SetStatusBarTexture(texture)
-    f.bar:GetStatusBarTexture():SetDrawLayer("ARTWORK")
     f.bar:SetHeight(height)
     f.bar:SetWidth(width - height - 1)
     f.bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
@@ -449,22 +496,22 @@ Spellgarden.FillFrame = function(self, f,width,height, unit, spark)
 	f.bar.bg:SetTexture(texture)
 
     f.timeText = f.bar:CreateFontString();
-    f.timeText:SetFont(LSM:Fetch("font", SpellgardenDB.timeFont), SpellgardenDB.timeFontSize)
+    f.timeText:SetFont(LSM:Fetch("font", NugCastDB.timeFont), NugCastDB.timeFontSize)
     -- f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
     f.timeText:SetJustifyH("RIGHT")
     f.timeText:SetVertexColor(1,1,1)
     f.timeText:SetPoint("TOPRIGHT", f.bar, "TOPRIGHT",-6,0)
     f.timeText:SetPoint("BOTTOMLEFT", f.bar, "BOTTOMLEFT",0,0)
-    f.timeText:SetTextColor(unpack(SpellgardenDB.textColor))
+    f.timeText:SetTextColor(unpack(NugCastDB.textColor))
 
-    local spellFontSize = SpellgardenDB[unit].spellFontSize
+    local spellFontSize = NugCastDB[unit].spellFontSize
 
     f.spellText = f.bar:CreateFontString();
-    f.spellText:SetFont(LSM:Fetch("font", SpellgardenDB.spellFont), spellFontSize)
+    f.spellText:SetFont(LSM:Fetch("font", NugCastDB.spellFont), spellFontSize)
     f.spellText:SetWidth(width/4*3 -12)
     f.spellText:SetHeight(height/2+1)
     f.spellText:SetJustifyH("CENTER")
-    f.spellText:SetTextColor(unpack(SpellgardenDB.textColor))
+    f.spellText:SetTextColor(unpack(NugCastDB.textColor))
     f.spellText:SetPoint("LEFT", f.bar, "LEFT",6,0)
     -- f.spellText:SetAlpha(0.5)
 
@@ -475,7 +522,7 @@ Spellgarden.FillFrame = function(self, f,width,height, unit, spark)
 end
 
 
-Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
+NugCast.MakeDoubleCastbar = function(self, f,width,height)
     local backdrop = {
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
         insets = {left = -2, right = -2, top = -2, bottom = -2},
@@ -487,7 +534,7 @@ Spellgarden.MakeDoubleCastbar = function(self, f,width,height)
     f:SetBackdrop(backdrop)
     f:SetBackdropColor(0, 0, 0, 0.7)
 
-    local texture = LSM:Fetch("statusbar", SpellgardenDB.barTexture)
+    local texture = LSM:Fetch("statusbar", NugCastDB.barTexture)
 
     local ic = CreateFrame("Frame",nil,f)
     -- ic:SetPoint("TOPLEFT",f,"TOPLEFT", 0, 0)
@@ -591,7 +638,7 @@ local function FindFreeCastbar()
         end
     end
 end
-Spellgarden.FindFreeCastbar = FindFreeCastbar
+NugCast.FindFreeCastbar = FindFreeCastbar
 
 
 local ordered_bars = {}
@@ -605,11 +652,11 @@ local function bar_sort_func(a,b)
     -- end
 end
 
-function Spellgarden:ArrangeNameplateTimers()
+function NugCast:ArrangeNameplateTimers()
 
 end
 
-function Spellgarden:CreateNameplateCastbars()
+function NugCast:CreateNameplateCastbars()
     local npCastbarsHeader = CreateFrame("Frame", nil, UIParent)
     -- npCastbarsHeader:Hide()
     npCastbarsHeader:SetWidth(10)
@@ -636,17 +683,18 @@ function Spellgarden:CreateNameplateCastbars()
             if bar.isActive then--and not UnitIsUnit(bar.unit, "target") then
                 bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
                 if bar.isTarget == 1 then
-                    if SpellgardenDB.nameplateExcludeTarget then
+                    if NugCastDB.nameplateExcludeTarget then
                         bar:Hide()
                     else
                         table.insert(ordered_bars, bar)
-                        bar.bar:SetColor(unpack(SpellgardenDB.highlightColor))
+                        bar:Show()
+                        bar.bar:SetColor(unpack(NugCastDB.highlightColor))
                     end
                 else
                     table.insert(ordered_bars, bar)
                     bar:Show()
-                    if not SpellgardenDB.nameplateExcludeTarget then    
-                        local color = (bar.inverted and SpellgardenDB.channelColor or SpellgardenDB.castColor)
+                    if not NugCastDB.nameplateExcludeTarget then    
+                        local color = (bar.inverted and NugCastDB.channelColor or NugCastDB.castColor)
                         bar.bar:SetColor(unpack(color))
                     end
                 end
@@ -676,7 +724,7 @@ function Spellgarden:CreateNameplateCastbars()
         if event == "PLAYER_TARGET_CHANGED" then
             return npCastbarsHeader:Arrange()
         end
-
+        
         if not unit:match("nameplate") then return end
         if UnitIsUnit(unit, "player") then return end
 
@@ -694,7 +742,7 @@ function Spellgarden:CreateNameplateCastbars()
                 if castbar then
                     castbar.unit = unit
                     npCastbarsByUnit[unit] = castbar
-                    Spellgarden[event](castbar, event, unit, ...)
+                    NugCast[event](castbar, event, unit, ...)
                 end
             elseif UnitChannelInfo(unit) then
                 event = "UNIT_SPELLCAST_CHANNEL_START"
@@ -702,7 +750,7 @@ function Spellgarden:CreateNameplateCastbars()
                 if castbar then
                     castbar.unit = unit
                     npCastbarsByUnit[unit] = castbar
-                    Spellgarden[event](castbar, event, unit, ...)
+                    NugCast[event](castbar, event, unit, ...)
                 end
             end
         elseif (event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START") and not npCastbarsByUnit[unit] then
@@ -711,12 +759,12 @@ function Spellgarden:CreateNameplateCastbars()
             if castbar then
                 castbar.unit = unit
                 npCastbarsByUnit[unit] = castbar
-                Spellgarden[event](castbar, event, unit, ...)
+                NugCast[event](castbar, event, unit, ...)
             end
         else
             local castbar = npCastbarsByUnit[unit]
             if castbar then
-                Spellgarden[event](castbar, event, unit, ...)
+                NugCast[event](castbar, event, unit, ...)
             end
         end
 
@@ -725,7 +773,7 @@ function Spellgarden:CreateNameplateCastbars()
 
     for i=1, MAX_NAMEPLATE_CASTBARS do 
         local f = CreateFrame("Frame", nil, npCastbarsHeader)
-        self:FillFrame(f, SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height, "nameplates")
+        self:FillFrame(f, NugCastDB.nameplates.width, NugCastDB.nameplates.height, "nameplates")
         -- self.bar:SetColor(unpack(nameplateBarColor))
         self:AddMore(f)
 
@@ -765,7 +813,7 @@ end
 
 
 
-function Spellgarden:CreateAnchor(db_tbl)
+function NugCast:CreateAnchor(db_tbl)
     local f = CreateFrame("Frame",nil,UIParent)
     f:SetHeight(20)
     f:SetWidth(20)
@@ -816,68 +864,75 @@ local ParseOpts = function(str)
     str:gsub("(%w+)%s*=%s*%[%[(.-)%]%]", capture):gsub("(%w+)%s*=%s*(%S+)", capture)
     return t
 end
-Spellgarden.Commands = {
+NugCast.Commands = {
     ["unlock"] = function()
         for unit, anchor in pairs(anchors) do
             anchor:Show()
         end
         local now = GetTime() * 1000
-        SpellgardenPlayer:UpdateCastingInfo("Player","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
-        SpellgardenTarget:UpdateCastingInfo("Target","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+        NugCastPlayer:UpdateCastingInfo("Player","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+        if NugCastTarget then
+            NugCastTarget:UpdateCastingInfo("Target","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+        end
+        if NugCastFocus then
+            NugCastFocus:UpdateCastingInfo("Focus","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+        end
         for i=1, 3 do
-            local castbar = Spellgarden.FindFreeCastbar()
+            local castbar = NugCast.FindFreeCastbar()
+            if not castbar then break end
             castbar.unit = "nameplate"..i
             castbar:UpdateCastingInfo("Nameplate"..i,"Interface\\Icons\\inv_misc_questionmark",now - 15000, now + 15000, 1, true)
         end
-        SpellgardenPlayerNameplateHeader:Arrange()
+        NugCastPlayerNameplateHeader:Arrange()
     end,
     ["lock"] = function()
         for unit, anchor in pairs(anchors) do
             anchor:Hide()
         end
-        SpellgardenPlayer:Hide()
-        SpellgardenTarget:Hide()
+        NugCastPlayer:Hide()
+        if NugCastTarget then NugCastTarget:Hide() end
+        if NugCastFocus then NugCastFocus:Hide() end
         for _, castbar in ipairs(npCastbars) do
             castbar:Deactivate()
             castbar:Hide()
         end
-        SpellgardenPlayerNameplateHeader:Arrange()
+        NugCastPlayerNameplateHeader:Arrange()
     end,
     ["nameplatebars"] = function()
-        SpellgardenDB.nameplateCastbars = not SpellgardenDB.nameplateCastbars
-        print("Nameplate castbars turned "..(SpellgardenDB.nameplateCastbars and "on" or "off")..". Will take effect after /reload")
+        NugCastDB.nameplateCastbars = not NugCastDB.nameplateCastbars
+        print("Nameplate castbars turned "..(NugCastDB.nameplateCastbars and "on" or "off")..". Will take effect after /reload")
     end,
 
     ["excludetarget"] = function()
-        SpellgardenDB.nameplateExcludeTarget = not SpellgardenDB.nameplateExcludeTarget
+        NugCastDB.nameplateExcludeTarget = not NugCastDB.nameplateExcludeTarget
     end,
 
     ["targetcastbar"] = function()
-        SpellgardenDB.targetCastbar = not SpellgardenDB.targetCastbar
-        print("Target castbar turned "..(SpellgardenDB.targetCastbar and "on" or "off")..". Will take effect after /reload")
+        NugCastDB.targetCastbar = not NugCastDB.targetCastbar
+        print("Target castbar turned "..(NugCastDB.targetCastbar and "on" or "off")..". Will take effect after /reload")
     end,
 
     ["set"] = function(v)
         local p = ParseOpts(v)
         local unit = p["unit"]
         if unit then
-            if p.width then SpellgardenDB[unit].width = p.width end
-            if p.height then SpellgardenDB[unit].height = p.height end
+            if p.width then NugCastDB[unit].width = p.width end
+            if p.height then NugCastDB[unit].height = p.height end
 
             if unit == "player" then
-                SpellgardenPlayer:Resize(SpellgardenDB.player.width, SpellgardenDB.player.height)
+                NugCastPlayer:Resize(NugCastDB.player.width, NugCastDB.player.height)
             elseif unit == "target" then
-                SpellgardenTarget:Resize(SpellgardenDB.target.width, SpellgardenDB.target.height)
+                NugCastTarget:Resize(NugCastDB.target.width, NugCastDB.target.height)
             elseif unit == "nameplates" then
                 for i, timer in ipairs(npCastbars) do
-                    timer:Resize(SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height)
+                    timer:Resize(NugCastDB.nameplates.width, NugCastDB.nameplates.height)
                 end
             end
         end
     end,
 }
 
-function Spellgarden.SlashCmd(msg)
+function NugCast.SlashCmd(msg)
     local k,v = string.match(msg, "([%w%+%-%=]+) ?(.*)")
     if not k or k == "help" then print([[Usage:
       |cff00ff00/spg lock|r
@@ -888,8 +943,8 @@ function Spellgarden.SlashCmd(msg)
       |cff00ff00/spg nameplatebars|r
     ]]
     )end
-    if Spellgarden.Commands[k] then
-        Spellgarden.Commands[k](v)
+    if NugCast.Commands[k] then
+        NugCast.Commands[k](v)
     end
 
 end
@@ -897,56 +952,62 @@ end
 
 
 
-function Spellgarden:Resize()
+function NugCast:Resize()
 
-    SpellgardenPlayer:Resize(SpellgardenDB.player.width, SpellgardenDB.player.height)
-    if SpellgardenTarget then
-        SpellgardenTarget:Resize(SpellgardenDB.target.width, SpellgardenDB.target.height)
+    NugCastPlayer:Resize(NugCastDB.player.width, NugCastDB.player.height)
+    if NugCastTarget then
+        NugCastTarget:Resize(NugCastDB.target.width, NugCastDB.target.height)
+    end
+    if NugCastFocus then
+        NugCastFocus:Resize(NugCastDB.target.width, NugCastDB.target.height)
     end
     for i, timer in ipairs(npCastbars) do
-        timer:Resize(SpellgardenDB.nameplates.width, SpellgardenDB.nameplates.height)
+        timer:Resize(NugCastDB.nameplates.width, NugCastDB.nameplates.height)
     end
 end
-function Spellgarden:ResizeText()
-    SpellgardenPlayer:ResizeText(SpellgardenDB.player.spellFontSize)
-    if SpellgardenTarget then
-        SpellgardenTarget:ResizeText(SpellgardenDB.target.spellFontSize)
+function NugCast:ResizeText()
+    NugCastPlayer:ResizeText(NugCastDB.player.spellFontSize)
+    if NugCastTarget then
+        NugCastTarget:ResizeText(NugCastDB.target.spellFontSize)
+    end
+    if NugCastFocus then
+        NugCastFocus:ResizeText(NugCastDB.target.spellFontSize)
     end
     for i, timer in ipairs(npCastbars) do
-        timer:ResizeText(SpellgardenDB.nameplates.spellFontSize)
+        timer:ResizeText(NugCastDB.nameplates.spellFontSize)
     end
 end
 
 
-function Spellgarden:CreateGUI()
+function NugCast:CreateGUI()
     local opt = {
         type = 'group',
-        name = "Spellgarden Settings",
+        name = "NugCastBar Settings",
         order = 1,
         args = {
             unlock = {
                 name = "Unlock",
                 type = "execute",
                 desc = "Unlock anchor for dragging",
-                func = function() Spellgarden.Commands.unlock() end,
+                func = function() NugCast.Commands.unlock() end,
                 order = 1,
             },
             lock = {
                 name = "Lock",
                 type = "execute",
                 desc = "Lock anchor",
-                func = function() Spellgarden.Commands.lock() end,
+                func = function() NugCast.Commands.lock() end,
                 order = 2,
             },
             resetToDefault = {
                 name = "Restore Defaults",
                 type = 'execute',
                 func = function()
-                    _G.SpellgardenDB = {}
-                    SetupDefaults(_G.SpellgardenDB, defaults)
-                    SpellgardenDB = _G.SpellgardenDB
-                    Spellgarden:Resize()
-                    Spellgarden:ResizeText()
+                    _G.NugCastDB = {}
+                    SetupDefaults(_G.NugCastDB, defaults)
+                    NugCastDB = _G.NugCastDB
+                    NugCast:Resize()
+                    NugCast:ResizeText()
                 end,
                 order = 3,
             },
@@ -957,34 +1018,47 @@ function Spellgarden:CreateGUI()
                 name = " ",
                 order = 4,
                 args = {
-                    excludeTarget = {
-                        name = "Exclude Target",
+                    targetCastbar = {
+                        name = "Target Castbar",
                         type = "toggle",
-                        order = 4,
-                        get = function(info) return SpellgardenDB.nameplateExcludeTarget end,
-                        set = function(info, v) Spellgarden.Commands.excludetarget() end
+                        confirm = true,
+						confirmText = "Warning: Requires UI reloading.",
+                        order = 1,
+                        get = function(info) return NugCastDB.targetCastbar end,
+                        set = function(info, v)
+                            NugCastDB.targetCastbar = not NugCastDB.targetCastbar
+                            ReloadUI()
+                        end
                     },
                     npCastbars = {
                         name = "Nameplate Castbars",
                         type = "toggle",
                         confirm = true,
 						confirmText = "Warning: Requires UI reloading.",
-                        order = 5,
-                        get = function(info) return SpellgardenDB.nameplateCastbars end,
+                        order = 2,
+                        get = function(info) return NugCastDB.nameplateCastbars end,
                         set = function(info, v)
-                            SpellgardenDB.nameplateCastbars = not SpellgardenDB.nameplateCastbars
+                            NugCastDB.nameplateCastbars = not NugCastDB.nameplateCastbars
                             ReloadUI()
                         end
                     },
-                    targetCastbar = {
-                        name = "Target Castbar",
+                    excludeTarget = {
+                        name = "Exclude Target",
+                        desc = "from nameplate castbars",
+                        type = "toggle",
+                        order = 3,
+                        get = function(info) return NugCastDB.nameplateExcludeTarget end,
+                        set = function(info, v) NugCast.Commands.excludetarget() end
+                    },
+                    focusCastbar = {
+                        name = "Focus Castbar",
                         type = "toggle",
                         confirm = true,
 						confirmText = "Warning: Requires UI reloading.",
-                        order = 6,
-                        get = function(info) return SpellgardenDB.targetCastbar end,
+                        order = 4,
+                        get = function(info) return NugCastDB.focusCastbar end,
                         set = function(info, v)
-                            SpellgardenDB.targetCastbar = not SpellgardenDB.targetCastbar
+                            NugCastDB.focusCastbar = not NugCastDB.focusCastbar
                             ReloadUI()
                         end
                     },
@@ -1005,11 +1079,11 @@ function Spellgarden:CreateGUI()
                                 name = "Cast Color",
                                 type = 'color',
                                 get = function(info)
-                                    local r,g,b = unpack(SpellgardenDB.castColor)
+                                    local r,g,b = unpack(NugCastDB.castColor)
                                     return r,g,b
                                 end,
                                 set = function(info, r, g, b)
-                                    SpellgardenDB.castColor = {r,g,b}
+                                    NugCastDB.castColor = {r,g,b}
                                 end,
                                 order = 1,
                             },
@@ -1018,23 +1092,24 @@ function Spellgarden:CreateGUI()
                                 type = 'color',
                                 order = 2,
                                 get = function(info)
-                                    local r,g,b = unpack(SpellgardenDB.channelColor)
+                                    local r,g,b = unpack(NugCastDB.channelColor)
                                     return r,g,b
                                 end,
                                 set = function(info, r, g, b)
-                                    SpellgardenDB.channelColor = {r,g,b}
+                                    NugCastDB.channelColor = {r,g,b}
                                 end,
                             },
                             highlightColor = {
                                 name = "Highlight Color",
                                 type = 'color',
+                                desc = "Used in nameplate castbars to mark current target when it's not excluded",
                                 order = 3,
                                 get = function(info)
-                                    local r,g,b = unpack(SpellgardenDB.highlightColor)
+                                    local r,g,b = unpack(NugCastDB.highlightColor)
                                     return r,g,b
                                 end,
                                 set = function(info, r, g, b)
-                                    SpellgardenDB.highlightColor = {r,g,b}
+                                    NugCastDB.highlightColor = {r,g,b}
                                 end,
                             },
                             textColor = {
@@ -1043,12 +1118,12 @@ function Spellgarden:CreateGUI()
                                 hasAlpha = true,
                                 order = 6,
                                 get = function(info)
-                                    local r,g,b,a = unpack(SpellgardenDB.textColor)
+                                    local r,g,b,a = unpack(NugCastDB.textColor)
                                     return r,g,b,a
                                 end,
                                 set = function(info, r, g, b, a)
-                                    SpellgardenDB.textColor = {r,g,b, a}
-                                    Spellgarden:ResizeText()
+                                    NugCastDB.textColor = {r,g,b, a}
+                                    NugCast:ResizeText()
                                 end,
                             },
                             texture = {
@@ -1056,10 +1131,10 @@ function Spellgarden:CreateGUI()
                                 name = "Texture",
                                 order = 5,
                                 desc = "Set the statusbar texture.",
-                                get = function(info) return SpellgardenDB.barTexture end,
+                                get = function(info) return NugCastDB.barTexture end,
                                 set = function(info, value)
-                                    SpellgardenDB.barTexture = value
-                                    Spellgarden:Resize()
+                                    NugCastDB.barTexture = value
+                                    NugCast:Resize()
                                 end,
                                 values = LSM:HashTable("statusbar"),
                                 dialogControl = "LSM30_Statusbar",
@@ -1075,10 +1150,10 @@ function Spellgarden:CreateGUI()
                             playerWidth = {
                                 name = "Player Bar Width",
                                 type = "range",
-                                get = function(info) return SpellgardenDB.player.width end,
+                                get = function(info) return NugCastDB.player.width end,
                                 set = function(info, v)
-                                    SpellgardenDB.player.width = tonumber(v)
-                                    Spellgarden:Resize()
+                                    NugCastDB.player.width = tonumber(v)
+                                    NugCast:Resize()
                                 end,
                                 min = 30,
                                 max = 1000,
@@ -1088,10 +1163,10 @@ function Spellgarden:CreateGUI()
                             playerHeight = {
                                 name = "Player Bar Height",
                                 type = "range",
-                                get = function(info) return SpellgardenDB.player.height end,
+                                get = function(info) return NugCastDB.player.height end,
                                 set = function(info, v)
-                                    SpellgardenDB.player.height = tonumber(v)
-                                    Spellgarden:Resize()
+                                    NugCastDB.player.height = tonumber(v)
+                                    NugCast:Resize()
                                 end,
                                 min = 10,
                                 max = 100,
@@ -1102,10 +1177,10 @@ function Spellgarden:CreateGUI()
                                 name = "Player Font Size",
                                 type = "range",
                                 order = 3,
-                                get = function(info) return SpellgardenDB.player.spellFontSize end,
+                                get = function(info) return NugCastDB.player.spellFontSize end,
                                 set = function(info, v)
-                                    SpellgardenDB.player.spellFontSize = tonumber(v)
-                                    Spellgarden:ResizeText()
+                                    NugCastDB.player.spellFontSize = tonumber(v)
+                                    NugCast:ResizeText()
                                 end,
                                 min = 5,
                                 max = 50,
@@ -1115,10 +1190,10 @@ function Spellgarden:CreateGUI()
                             targetWidth = {
                                 name = "Target Bar Width",
                                 type = "range",
-                                get = function(info) return SpellgardenDB.target.width end,
+                                get = function(info) return NugCastDB.target.width end,
                                 set = function(info, v)
-                                    SpellgardenDB.target.width = tonumber(v)
-                                    Spellgarden:Resize()
+                                    NugCastDB.target.width = tonumber(v)
+                                    NugCast:Resize()
                                 end,
                                 min = 30,
                                 max = 1000,
@@ -1128,10 +1203,10 @@ function Spellgarden:CreateGUI()
                             targetHeight = {
                                 name = "Target Bar Height",
                                 type = "range",
-                                get = function(info) return SpellgardenDB.target.height end,
+                                get = function(info) return NugCastDB.target.height end,
                                 set = function(info, v)
-                                    SpellgardenDB.target.height = tonumber(v)
-                                    Spellgarden:Resize()
+                                    NugCastDB.target.height = tonumber(v)
+                                    NugCast:Resize()
                                 end,
                                 min = 10,
                                 max = 100,
@@ -1142,10 +1217,10 @@ function Spellgarden:CreateGUI()
                                 name = "Target Font Size",
                                 type = "range",
                                 order = 6,
-                                get = function(info) return SpellgardenDB.target.spellFontSize end,
+                                get = function(info) return NugCastDB.target.spellFontSize end,
                                 set = function(info, v)
-                                    SpellgardenDB.target.spellFontSize = tonumber(v)
-                                    Spellgarden:ResizeText()
+                                    NugCastDB.target.spellFontSize = tonumber(v)
+                                    NugCast:ResizeText()
                                 end,
                                 min = 5,
                                 max = 50,
@@ -1155,10 +1230,10 @@ function Spellgarden:CreateGUI()
                             nameplatesWidth = {
                                 name = "Nameplates Bar Width",
                                 type = "range",
-                                get = function(info) return SpellgardenDB.nameplates.width end,
+                                get = function(info) return NugCastDB.nameplates.width end,
                                 set = function(info, v)
-                                    SpellgardenDB.nameplates.width = tonumber(v)
-                                    Spellgarden:Resize()
+                                    NugCastDB.nameplates.width = tonumber(v)
+                                    NugCast:Resize()
                                 end,
                                 min = 30,
                                 max = 300,
@@ -1168,10 +1243,10 @@ function Spellgarden:CreateGUI()
                             nameplatesHeight = {
                                 name = "Nameplates Bar Height",
                                 type = "range",
-                                get = function(info) return SpellgardenDB.nameplates.height end,
+                                get = function(info) return NugCastDB.nameplates.height end,
                                 set = function(info, v)
-                                    SpellgardenDB.nameplates.height = tonumber(v)
-                                    Spellgarden:Resize()
+                                    NugCastDB.nameplates.height = tonumber(v)
+                                    NugCast:Resize()
                                 end,
                                 min = 10,
                                 max = 60,
@@ -1182,10 +1257,10 @@ function Spellgarden:CreateGUI()
                                 name = "Enemies Font Size",
                                 type = "range",
                                 order = 9,
-                                get = function(info) return SpellgardenDB.nameplates.spellFontSize end,
+                                get = function(info) return NugCastDB.nameplates.spellFontSize end,
                                 set = function(info, v)
-                                    SpellgardenDB.nameplates.spellFontSize = tonumber(v)
-                                    Spellgarden:ResizeText()
+                                    NugCastDB.nameplates.spellFontSize = tonumber(v)
+                                    NugCast:ResizeText()
                                 end,
                                 min = 5,
                                 max = 50,
@@ -1207,10 +1282,10 @@ function Spellgarden:CreateGUI()
                                 name = "Spell Font",
                                 order = 1,
                                 desc = "Set the statusbar texture.",
-                                get = function(info) return SpellgardenDB.spellFont end,
+                                get = function(info) return NugCastDB.spellFont end,
                                 set = function(info, value)
-                                    SpellgardenDB.spellFont = value
-                                    Spellgarden:ResizeText()
+                                    NugCastDB.spellFont = value
+                                    NugCast:ResizeText()
                                 end,
                                 values = LSM:HashTable("font"),
                                 dialogControl = "LSM30_Font",
@@ -1221,10 +1296,10 @@ function Spellgarden:CreateGUI()
                                 name = "Time Font",
                                 order = 3,
                                 desc = "Set the statusbar texture.",
-                                get = function(info) return SpellgardenDB.timeFont end,
+                                get = function(info) return NugCastDB.timeFont end,
                                 set = function(info, value)
-                                    SpellgardenDB.timeFont = value
-                                    Spellgarden:ResizeText()
+                                    NugCastDB.timeFont = value
+                                    NugCast:ResizeText()
                                 end,
                                 values = LSM:HashTable("font"),
                                 dialogControl = "LSM30_Font",
@@ -1233,10 +1308,10 @@ function Spellgarden:CreateGUI()
                                 name = "Time Font Size",
                                 type = "range",
                                 order = 4,
-                                get = function(info) return SpellgardenDB.timeFontSize end,
+                                get = function(info) return NugCastDB.timeFontSize end,
                                 set = function(info, v)
-                                    SpellgardenDB.timeFontSize = tonumber(v)
-                                    Spellgarden:ResizeText()
+                                    NugCastDB.timeFontSize = tonumber(v)
+                                    NugCast:ResizeText()
                                 end,
                                 min = 5,
                                 max = 50,
@@ -1251,10 +1326,87 @@ function Spellgarden:CreateGUI()
     }
 
     local AceConfigRegistry = LibStub("AceConfigRegistry-3.0")
-    AceConfigRegistry:RegisterOptionsTable("SpellgardenOptions", opt)
+    AceConfigRegistry:RegisterOptionsTable("NugCastOptions", opt)
 
     local AceConfigDialog = LibStub("AceConfigDialog-3.0")
-    local panelFrame = AceConfigDialog:AddToBlizOptions("SpellgardenOptions", "Spellgarden")
+    local panelFrame = AceConfigDialog:AddToBlizOptions("NugCastOptions", "NugCastBar")
 
     return panelFrame
+end
+
+
+do
+    local SetCoord = function(self, left, right, top, bottom)
+        self.left = left
+        self.right = right
+        self.top =  top
+        self.bottom =  bottom
+        self.t:SetTexCoord(left,right,top,bottom)
+    end
+    local SetStatusBarTexture = function (self, texture)
+        self.t:SetTexture(texture)
+    end
+    local GetStatusBarTexture = function (self)
+        return self.t:GetTexture()
+    end
+    local SetStatusBarColor = function(self, r,g,b,a)
+        self.t:SetVertexColor(r,g,b,a)
+    end
+    
+    local GetMinMaxValues = function(self)
+        return self.minvalue, self.maxvalue
+    end
+
+    local SetMinMaxValues = function(self, min, max)
+        if max > min then
+            self.minvalue = min
+            self.maxvalue = max
+        else
+            self.minvalue = 0
+            self.maxvalue = 1
+        end
+    end
+    
+    local SetValue = function(self, val)
+        if not val then return end
+        
+        local pos = (val-self.minvalue)/(self.maxvalue-self.minvalue)
+        if pos == 0 then pos = 0.001 end
+        local h = self:GetWidth()*pos
+        self.t:SetWidth(h)
+        -- print ("pos: "..pos)
+        -- print (string.format("min:%s max:%s",self.minvalue,self.maxvalue))
+        -- print((self.bottom-self.top)*pos)
+        -- print(string.format("coords: %s %s %s %s",self.left,self.right, self.bottom - (self.bottom-self.top)*pos , self.bottom))
+        self.t:SetTexCoord(0, 1*pos, 0, 1)
+    end
+
+    function NugCast:CreateHorizontalBar(name, parent)
+        local f = CreateFrame("Frame", name, parent)
+        -- f.left = 0
+        -- f.right = 1
+        -- f.top =  0
+        -- f.bottom =  1
+        f.minvalue = 0
+        f.maxvalue = 100    
+        
+        local t = f:CreateTexture(nil, "ARTWORK")
+        
+        t:SetPoint("TOPLEFT", f, "TOPLEFT",0,0)
+        t:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT",0,0)
+        
+        f.t = t
+        
+        f.SetCoord = SetCoord
+        f.SetStatusBarTexture = SetStatusBarTexture
+        f.GetStatusBarTexture = GetStatusBarTexture
+        f.SetStatusBarColor = SetStatusBarColor
+        f.GetMinMaxValues = GetMinMaxValues
+        f.SetMinMaxValues = SetMinMaxValues
+        f.SetValue = SetValue
+
+        f:Show()
+        
+        return f
+    end
 end

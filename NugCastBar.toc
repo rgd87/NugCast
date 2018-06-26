@@ -1,8 +1,8 @@
 ## Interface: 80000
-## Title: Spellgarden
+## Title: NugCastBar
 ## Author: d87
 ## Notes: Castbar addon
-## SavedVariables: SpellgardenDB
+## SavedVariables: NugCastDB
 
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
@@ -12,4 +12,3 @@ Libs\LibSharedMedia-3.0\lib.xml
 Libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
 
 castbar.lua
-badspells.lua
