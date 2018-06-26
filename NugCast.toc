@@ -1,5 +1,5 @@
 ## Interface: 80000
-## Title: NugCastBar
+## Title: NugCast
 ## Author: d87
 ## Notes: Castbar addon
 ## SavedVariables: NugCastDB

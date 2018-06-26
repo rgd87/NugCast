@@ -8,7 +8,7 @@ local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
 
-LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCastBar\statusbar.tga]])
+LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCast\statusbar.tga]])
 
 local npCastbars = {}
 local npCastbarsByUnit = {}
@@ -169,7 +169,6 @@ function NugCast:PLAYER_LOGIN()
 
 
     SLASH_NUGCAST1= "/nugcast"
-    SLASH_NUGCAST1= "/nugcastbar"
     SlashCmdList["NUGCAST"] = NugCast.SlashCmd
 
     local f = CreateFrame('Frame', nil, InterfaceOptionsFrame)
@@ -340,7 +339,7 @@ NugCast.AddSpark = function(self, bar)
 
     local spark = bar:CreateTexture(nil, "ARTWORK", nil, 4)
     spark:SetBlendMode("ADD")
-    spark:SetTexture([[Interface\AddOns\NugCastBar\spark.tga]])
+    spark:SetTexture([[Interface\AddOns\NugCast\spark.tga]])
     spark:SetSize(bar:GetHeight()*2, bar:GetHeight())
 
     -- spark:SetPoint("CENTER", bar, "LEFT",0,0)
@@ -982,7 +981,7 @@ end
 function NugCast:CreateGUI()
     local opt = {
         type = 'group',
-        name = "NugCastBar Settings",
+        name = "NugCast Settings",
         order = 1,
         args = {
             unlock = {
@@ -1329,7 +1328,7 @@ function NugCast:CreateGUI()
     AceConfigRegistry:RegisterOptionsTable("NugCastOptions", opt)
 
     local AceConfigDialog = LibStub("AceConfigDialog-3.0")
-    local panelFrame = AceConfigDialog:AddToBlizOptions("NugCastOptions", "NugCastBar")
+    local panelFrame = AceConfigDialog:AddToBlizOptions("NugCastOptions", "NugCast")
 
     return panelFrame
 end
