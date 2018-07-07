@@ -215,7 +215,7 @@ end
 NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
 function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
-    local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitChannelInfo(unit)
+    local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo(unit)
     self.inverted = true
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
