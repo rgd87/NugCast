@@ -3,6 +3,7 @@
 ## Author: d87
 ## Notes: Castbar addon
 ## SavedVariables: NugCastDB
+## Version: @project-version@
 
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
