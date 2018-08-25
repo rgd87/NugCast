@@ -632,7 +632,7 @@ end
 local function FindFreeCastbar()
     for i=1, MAX_NAMEPLATE_CASTBARS do 
         local bar = npCastbars[i]
-        if not bar.isActive then
+        if bar and not bar.isActive then
             return  bar
         end
     end
@@ -882,7 +882,9 @@ NugCast.Commands = {
             castbar.unit = "nameplate"..i
             castbar:UpdateCastingInfo("Nameplate"..i,"Interface\\Icons\\inv_misc_questionmark",now - 15000, now + 15000, 1, true)
         end
-        NugCastPlayerNameplateHeader:Arrange()
+        if NugCastPlayerNameplateHeader then 
+            NugCastPlayerNameplateHeader:Arrange()
+        end
     end,
     ["lock"] = function()
         for unit, anchor in pairs(anchors) do
@@ -895,7 +897,9 @@ NugCast.Commands = {
             castbar:Deactivate()
             castbar:Hide()
         end
-        NugCastPlayerNameplateHeader:Arrange()
+        if NugCastPlayerNameplateHeader then 
+            NugCastPlayerNameplateHeader:Arrange()
+        end
     end,
     ["nameplatebars"] = function()
         NugCastDB.nameplateCastbars = not NugCastDB.nameplateCastbars
