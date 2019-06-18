@@ -3,6 +3,11 @@ NugCast = CreateFrame("Frame",nil,UIParent)
 local NugCast = _G.NugCast
 local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
+local isClassic = select(4,GetBuildInfo()) <= 19999
+if isClassic then
+    UnitCastingInfo = CastingInfo
+    UnitChannelInfo = ChannelInfo
+end
 
 local NugCastDB
 
@@ -133,7 +138,7 @@ function NugCast:PLAYER_LOGIN()
     player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
     anchors["player"] = player_anchor
 
-    if NugCastDB.targetCastbar then
+    if NugCastDB.targetCastbar and not isClassic then
         local target = NugCast:SpawnCastBar("target", NugCastDB.target.width, NugCastDB.target.height)
         target:RegisterEvent("PLAYER_TARGET_CHANGED")
         NugCast:AddMore(target)
@@ -144,7 +149,7 @@ function NugCast:PLAYER_LOGIN()
         anchors["target"] = target_anchor
     end
 
-    if NugCastDB.focusCastbar then
+    if NugCastDB.focusCastbar and not isClassic then
         local focus = NugCast:SpawnCastBar("focus", NugCastDB.target.width, NugCastDB.target.height)
         focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
         NugCast:AddMore(focus)
@@ -158,7 +163,7 @@ function NugCast:PLAYER_LOGIN()
     -- else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
 
 
-    if NugCastDB.nameplateCastbars then
+    if NugCastDB.nameplateCastbars and not isClassic then
         local npheader = NugCast:CreateNameplateCastbars()
         NugCastPlayerNameplateHeader = npheader
         local nameplates_anchor = self:CreateAnchor(NugCastDB.anchors["nameplates"])
@@ -630,7 +635,7 @@ end
 
 
 local function FindFreeCastbar()
-    for i=1, MAX_NAMEPLATE_CASTBARS do 
+    for i=1, MAX_NAMEPLATE_CASTBARS do
         local bar = npCastbars[i]
         if bar and not bar.isActive then
             return  bar
@@ -670,14 +675,14 @@ function NugCast:CreateNameplateCastbars()
     npCastbarsHeader:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 
     npCastbarsHeader:RegisterEvent("PLAYER_TARGET_CHANGED")
-    
+
     -- npCastbarsHeader:RegisterEvent("NAME_PLATE_CREATED")
     npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_ADDED")
     npCastbarsHeader:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 
     npCastbarsHeader.Arrange = function(self)
         table.wipe(ordered_bars)
-        for i=1, MAX_NAMEPLATE_CASTBARS do 
+        for i=1, MAX_NAMEPLATE_CASTBARS do
             local bar = npCastbars[i]
             if bar.isActive then--and not UnitIsUnit(bar.unit, "target") then
                 bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
@@ -692,7 +697,7 @@ function NugCast:CreateNameplateCastbars()
                 else
                     table.insert(ordered_bars, bar)
                     bar:Show()
-                    if not NugCastDB.nameplateExcludeTarget then    
+                    if not NugCastDB.nameplateExcludeTarget then
                         local color = (bar.inverted and NugCastDB.channelColor or NugCastDB.castColor)
                         bar.bar:SetColor(unpack(color))
                     end
@@ -701,7 +706,7 @@ function NugCast:CreateNameplateCastbars()
             end
         end
 
-        table.sort(ordered_bars, bar_sort_func)     
+        table.sort(ordered_bars, bar_sort_func)
         local prev
         local gap = 0
         -- local xgap = 0
@@ -719,11 +724,11 @@ function NugCast:CreateNameplateCastbars()
         end
     end
 
-    npCastbarsHeader:SetScript("OnEvent", function(self, event, unit, ...)  
+    npCastbarsHeader:SetScript("OnEvent", function(self, event, unit, ...)
         if event == "PLAYER_TARGET_CHANGED" then
             return npCastbarsHeader:Arrange()
         end
-        
+
         if not unit:match("nameplate") then return end
         if UnitIsUnit(unit, "player") then return end
 
@@ -770,7 +775,7 @@ function NugCast:CreateNameplateCastbars()
         npCastbarsHeader:Arrange()
     end)
 
-    for i=1, MAX_NAMEPLATE_CASTBARS do 
+    for i=1, MAX_NAMEPLATE_CASTBARS do
         local f = CreateFrame("Frame", nil, npCastbarsHeader)
         self:FillFrame(f, NugCastDB.nameplates.width, NugCastDB.nameplates.height, "nameplates")
         -- self.bar:SetColor(unpack(nameplateBarColor))
@@ -787,7 +792,7 @@ function NugCast:CreateNameplateCastbars()
         f.endTime = 0
 
         -- f:SetScript("OnHide", function(self)
-            
+
         -- end)
 
         -- f:SetPoint("TOPLEFT", npCastbarsHeader, "TOPLEFT", 0, 0 + i*30)
@@ -882,7 +887,7 @@ NugCast.Commands = {
             castbar.unit = "nameplate"..i
             castbar:UpdateCastingInfo("Nameplate"..i,"Interface\\Icons\\inv_misc_questionmark",now - 15000, now + 15000, 1, true)
         end
-        if NugCastPlayerNameplateHeader then 
+        if NugCastPlayerNameplateHeader then
             NugCastPlayerNameplateHeader:Arrange()
         end
     end,
@@ -897,7 +902,7 @@ NugCast.Commands = {
             castbar:Deactivate()
             castbar:Hide()
         end
-        if NugCastPlayerNameplateHeader then 
+        if NugCastPlayerNameplateHeader then
             NugCastPlayerNameplateHeader:Arrange()
         end
     end,
@@ -1015,7 +1020,7 @@ function NugCast:CreateGUI()
                 order = 3,
             },
             toggleGroup = {
-                        
+
                 type = "group",
                 guiInline = true,
                 name = " ",
@@ -1149,7 +1154,7 @@ function NugCast:CreateGUI()
                         name = " ",
                         order = 2,
                         args = {
-                            
+
                             playerWidth = {
                                 name = "Player Bar Width",
                                 type = "range",
@@ -1269,12 +1274,12 @@ function NugCast:CreateGUI()
                                 max = 50,
                                 step = 1,
                             },
-                            
+
                         },
                     },
 
                     textGroup = {
-                        
+
                         type = "group",
                         name = " ",
                         order = 3,
@@ -1293,7 +1298,7 @@ function NugCast:CreateGUI()
                                 values = LSM:HashTable("font"),
                                 dialogControl = "LSM30_Font",
                             },
-                            
+
                             font2 = {
                                 type = "select",
                                 name = "Time Font",
@@ -1322,7 +1327,7 @@ function NugCast:CreateGUI()
                             },
                         },
                     },
-                    
+
                 },
             }, --
         },
@@ -1355,7 +1360,7 @@ do
     local SetStatusBarColor = function(self, r,g,b,a)
         self.t:SetVertexColor(r,g,b,a)
     end
-    
+
     local GetMinMaxValues = function(self)
         return self.minvalue, self.maxvalue
     end
@@ -1369,10 +1374,10 @@ do
             self.maxvalue = 1
         end
     end
-    
+
     local SetValue = function(self, val)
         if not val then return end
-        
+
         local pos = (val-self.minvalue)/(self.maxvalue-self.minvalue)
         if pos == 0 then pos = 0.001 end
         local h = self:GetWidth()*pos
@@ -1391,15 +1396,15 @@ do
         -- f.top =  0
         -- f.bottom =  1
         f.minvalue = 0
-        f.maxvalue = 100    
-        
+        f.maxvalue = 100
+
         local t = f:CreateTexture(nil, "ARTWORK")
-        
+
         t:SetPoint("TOPLEFT", f, "TOPLEFT",0,0)
         t:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT",0,0)
-        
+
         f.t = t
-        
+
         f.SetCoord = SetCoord
         f.SetStatusBarTexture = SetStatusBarTexture
         f.GetStatusBarTexture = GetStatusBarTexture
@@ -1409,7 +1414,7 @@ do
         f.SetValue = SetValue
 
         f:Show()
-        
+
         return f
     end
 end
