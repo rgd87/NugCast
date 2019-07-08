@@ -12,6 +12,7 @@ end
 local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
+local LibCC = isClassic and LibStub("LibClassicCast-1.0", true)
 
 LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCast\statusbar.tga]])
 
@@ -138,7 +139,7 @@ function NugCast:PLAYER_LOGIN()
     player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
     anchors["player"] = player_anchor
 
-    if NugCastDB.targetCastbar and not isClassic then
+    if NugCastDB.targetCastbar then
         local target = NugCast:SpawnCastBar("target", NugCastDB.target.width, NugCastDB.target.height)
         target:RegisterEvent("PLAYER_TARGET_CHANGED")
         NugCast:AddMore(target)
@@ -291,6 +292,7 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
             end
         end
     end
+
 function NugCast.SpawnCastBar(self,unit,width,height)
     local f = CreateFrame("Frame",nil,UIParent)
     f.unit = unit
@@ -307,14 +309,35 @@ function NugCast.SpawnCastBar(self,unit,width,height)
     -- end
 
     f:Hide()
-    f:RegisterEvent("UNIT_SPELLCAST_START")
-    f:RegisterEvent("UNIT_SPELLCAST_DELAYED")
-    f:RegisterEvent("UNIT_SPELLCAST_STOP")
-    f:RegisterEvent("UNIT_SPELLCAST_FAILED")
-    f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
-    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
-    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    if unit ~= "player" and LibCC then
+        local CastbarEventHandler = function(event, ...)
+            local self = f
+            return NugCast[event](self, event, ...)
+        end
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_START", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_DELAYED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_STOP", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_FAILED", CastbarEventHandler)
+        -- LibCC.RegisterCallback(f,"UNIT_SPELLCAST_INTERRUPTED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_START", CastbarEventHandler)
+        -- LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_UPDATE", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_STOP", CastbarEventHandler)
+        UnitCastingInfo = function(unit)
+            return LibCC:UnitCastingInfo(unit)
+        end
+        UnitChannelInfo = function(unit)
+            return LibCC:UnitChannelInfo(unit)
+        end
+    else
+        f:RegisterEvent("UNIT_SPELLCAST_START")
+        f:RegisterEvent("UNIT_SPELLCAST_DELAYED")
+        f:RegisterEvent("UNIT_SPELLCAST_STOP")
+        f:RegisterEvent("UNIT_SPELLCAST_FAILED")
+        f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
+        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    end
     -- f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
     -- f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
     f:SetScript("OnEvent", function(self, event, ...)
@@ -375,8 +398,10 @@ NugCast.AddSpark = function(self, bar)
 end
 
 NugCast.AddMore = function(self, f)
-    f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
-    f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
+    if not isClassic then
+        f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
+        f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
+    end
     local height = f:GetHeight()
     local shield = f.icon:GetParent():CreateTexture(nil,"ARTWORK",nil,2)
     shield:SetTexture([[Interface\AchievementFrame\UI-Achievement-IconFrame]])
