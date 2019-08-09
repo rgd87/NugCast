@@ -309,6 +309,8 @@ function NugCast.SpawnCastBar(self,unit,width,height)
     -- end
 
     f:Hide()
+
+    LibCC = nil
     if unit ~= "player" and LibCC then
         local CastbarEventHandler = function(event, ...)
             local self = f
