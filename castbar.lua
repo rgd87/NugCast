@@ -12,7 +12,7 @@ end
 local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
-local LibCC = isClassic and LibStub("LibClassicCast-1.0", true)
+local LibCC = isClassic and LibStub("LibClassicCasterino", true)
 
 LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCast\statusbar.tga]])
 
@@ -310,17 +310,16 @@ function NugCast.SpawnCastBar(self,unit,width,height)
 
     f:Hide()
 
-    LibCC = nil
     if unit ~= "player" and LibCC then
         local CastbarEventHandler = function(event, ...)
             local self = f
             return NugCast[event](self, event, ...)
         end
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_START", CastbarEventHandler)
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_DELAYED", CastbarEventHandler)
+        -- LibCC.RegisterCallback(f,"UNIT_SPELLCAST_DELAYED", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_STOP", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_FAILED", CastbarEventHandler)
-        -- LibCC.RegisterCallback(f,"UNIT_SPELLCAST_INTERRUPTED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_INTERRUPTED", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_START", CastbarEventHandler)
         -- LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_UPDATE", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_STOP", CastbarEventHandler)
