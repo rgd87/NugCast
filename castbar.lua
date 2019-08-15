@@ -310,18 +310,18 @@ function NugCast.SpawnCastBar(self,unit,width,height)
 
     f:Hide()
 
-    if unit ~= "player" and LibCC then
+    if LibCC then
         local CastbarEventHandler = function(event, ...)
             local self = f
             return NugCast[event](self, event, ...)
         end
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_START", CastbarEventHandler)
-        -- LibCC.RegisterCallback(f,"UNIT_SPELLCAST_DELAYED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_DELAYED", CastbarEventHandler) -- only for player
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_STOP", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_FAILED", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_INTERRUPTED", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_START", CastbarEventHandler)
-        -- LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_UPDATE", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_UPDATE", CastbarEventHandler) -- only for player
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_STOP", CastbarEventHandler)
         UnitCastingInfo = function(unit)
             return LibCC:UnitCastingInfo(unit)
