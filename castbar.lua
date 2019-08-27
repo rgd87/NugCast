@@ -135,6 +135,9 @@ function NugCast:PLAYER_LOGIN()
     CastingBarFrame:UnregisterAllEvents()
     NugCastPlayer = player
 
+    NugCastDB.focusCastbar = false
+    NugCastDB.nameplateCastbars = false
+
     local player_anchor = self:CreateAnchor(NugCastDB.anchors["player"])
     player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
     anchors["player"] = player_anchor
@@ -1064,38 +1067,6 @@ function NugCast:CreateGUI()
                             ReloadUI()
                         end
                     },
-                    npCastbars = {
-                        name = "Nameplate Castbars",
-                        type = "toggle",
-                        confirm = true,
-						confirmText = "Warning: Requires UI reloading.",
-                        order = 2,
-                        get = function(info) return NugCastDB.nameplateCastbars end,
-                        set = function(info, v)
-                            NugCastDB.nameplateCastbars = not NugCastDB.nameplateCastbars
-                            ReloadUI()
-                        end
-                    },
-                    excludeTarget = {
-                        name = "Exclude Target",
-                        desc = "from nameplate castbars",
-                        type = "toggle",
-                        order = 3,
-                        get = function(info) return NugCastDB.nameplateExcludeTarget end,
-                        set = function(info, v) NugCast.Commands.excludetarget() end
-                    },
-                    focusCastbar = {
-                        name = "Focus Castbar",
-                        type = "toggle",
-                        confirm = true,
-						confirmText = "Warning: Requires UI reloading.",
-                        order = 4,
-                        get = function(info) return NugCastDB.focusCastbar end,
-                        set = function(info, v)
-                            NugCastDB.focusCastbar = not NugCastDB.focusCastbar
-                            ReloadUI()
-                        end
-                    },
                 },
             },
             anchors = {
@@ -1131,19 +1102,6 @@ function NugCast:CreateGUI()
                                 end,
                                 set = function(info, r, g, b)
                                     NugCastDB.channelColor = {r,g,b}
-                                end,
-                            },
-                            highlightColor = {
-                                name = "Highlight Color",
-                                type = 'color',
-                                desc = "Used in nameplate castbars to mark current target when it's not excluded",
-                                order = 3,
-                                get = function(info)
-                                    local r,g,b = unpack(NugCastDB.highlightColor)
-                                    return r,g,b
-                                end,
-                                set = function(info, r, g, b)
-                                    NugCastDB.highlightColor = {r,g,b}
                                 end,
                             },
                             textColor = {
@@ -1260,47 +1218,6 @@ function NugCast:CreateGUI()
                                 max = 50,
                                 step = 1,
                             },
-
-                            nameplatesWidth = {
-                                name = "Nameplates Bar Width",
-                                type = "range",
-                                get = function(info) return NugCastDB.nameplates.width end,
-                                set = function(info, v)
-                                    NugCastDB.nameplates.width = tonumber(v)
-                                    NugCast:Resize()
-                                end,
-                                min = 30,
-                                max = 300,
-                                step = 1,
-                                order = 7,
-                            },
-                            nameplatesHeight = {
-                                name = "Nameplates Bar Height",
-                                type = "range",
-                                get = function(info) return NugCastDB.nameplates.height end,
-                                set = function(info, v)
-                                    NugCastDB.nameplates.height = tonumber(v)
-                                    NugCast:Resize()
-                                end,
-                                min = 10,
-                                max = 60,
-                                step = 1,
-                                order = 8,
-                            },
-                            nameplateFontSize = {
-                                name = "Enemies Font Size",
-                                type = "range",
-                                order = 9,
-                                get = function(info) return NugCastDB.nameplates.spellFontSize end,
-                                set = function(info, v)
-                                    NugCastDB.nameplates.spellFontSize = tonumber(v)
-                                    NugCast:ResizeText()
-                                end,
-                                min = 5,
-                                max = 50,
-                                step = 1,
-                            },
-
                         },
                     },
 
