@@ -1058,6 +1058,18 @@ function NugCast:CreateGUI()
                 name = " ",
                 order = 4,
                 args = {
+                    playerCastbar = {
+                        name = "Player Castbar",
+                        type = "toggle",
+                        confirm = true,
+						confirmText = "Warning: Requires UI reloading.",
+                        order = 1,
+                        get = function(info) return NugCastDB.playerCastbar end,
+                        set = function(info, v)
+                            NugCastDB.playerCastbar = not NugCastDB.playerCastbar
+                            ReloadUI()
+                        end
+                    },
                     targetCastbar = {
                         name = "Target Castbar",
                         type = "toggle",
