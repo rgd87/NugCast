@@ -74,6 +74,7 @@ local defaults = {
     spellFont = "Friz Quadrata TT",
     timeFont = "Friz Quadrata TT",
     timeFontSize = 8,
+    playerCastbar = true,
     targetCastbar = true,
     focusCastbar = false,
     textColor = {1,1,1,0.5},
@@ -128,17 +129,19 @@ function NugCast:PLAYER_LOGIN()
     NugCastDB = _G.NugCastDB
     SetupDefaults(NugCastDB, defaults)
 
-    local player = NugCast:SpawnCastBar("player", NugCastDB.player.width, NugCastDB.player.height)
-    player.spellText:Hide()
-    player.timeText:Hide()
-    CastingBarFrame:UnregisterAllEvents()
-    NugCastPlayer = player
+    if NugCastDB.playerCastbar then
+        local player = NugCast:SpawnCastBar("player", NugCastDB.player.width, NugCastDB.player.height)
+        player.spellText:Hide()
+        player.timeText:Hide()
+        CastingBarFrame:UnregisterAllEvents()
+        NugCastPlayer = player
 
-    local player_anchor = self:CreateAnchor(NugCastDB.anchors["player"])
-    player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
-    anchors["player"] = player_anchor
+        local player_anchor = self:CreateAnchor(NugCastDB.anchors["player"])
+        player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
+        anchors["player"] = player_anchor
+    end
 
-    if NugCastDB.targetCastbar and not isClassic then
+    if NugCastDB.targetCastbar then
         local target = NugCast:SpawnCastBar("target", NugCastDB.target.width, NugCastDB.target.height)
         target:RegisterEvent("PLAYER_TARGET_CHANGED")
         NugCast:AddMore(target)
