@@ -81,6 +81,8 @@ local defaults = {
     castColor = { 0.6, 0, 1 },
     channelColor = {200/255,50/255,95/255 },
     highlightColor = { 206/255, 4/256, 56/256 },
+    notInterruptibleColorEnabled = false,
+    notInterruptibleColor = { 0.5, 0.5, 0.5 },
     nameplateExcludeTarget = true,
     nameplateCastbars = true,
     -- tex = "",
@@ -289,6 +291,9 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         if self.shield then
             if notInterruptible then
                 self.shield:Show()
+                if NugCastDB.notInterruptibleColorEnabled then
+                    self.bar:SetColor(unpack(NugCastDB.notInterruptibleColor))
+                end
             else
                 self.shield:Hide()
             end
@@ -1114,6 +1119,7 @@ function NugCast:CreateGUI()
                                 name = "Highlight Color",
                                 type = 'color',
                                 desc = "Used in nameplate castbars to mark current target when it's not excluded",
+                                width = 1.3,
                                 order = 3,
                                 get = function(info)
                                     local r,g,b = unpack(NugCastDB.highlightColor)
@@ -1140,7 +1146,7 @@ function NugCast:CreateGUI()
                             texture = {
                                 type = "select",
                                 name = "Texture",
-                                order = 5,
+                                order = 10,
                                 desc = "Set the statusbar texture.",
                                 get = function(info) return NugCastDB.barTexture end,
                                 set = function(info, value)
@@ -1149,6 +1155,29 @@ function NugCast:CreateGUI()
                                 end,
                                 values = LSM:HashTable("statusbar"),
                                 dialogControl = "LSM30_Statusbar",
+                            },
+                            notInterruptibleColorEnabled = {
+                                name = "",
+                                width = 0.2,
+                                type = "toggle",
+                                order = 5,
+                                get = function(info) return NugCastDB.notInterruptibleColorEnabled end,
+                                set = function(info, v)
+                                    NugCastDB.notInterruptibleColorEnabled = not NugCastDB.notInterruptibleColorEnabled
+                                end
+                            },
+                            notInterruptibleColor = {
+                                name = "Non-Interruptible Color",
+                                type = 'color',
+                                disabled = function() return not NugCastDB.notInterruptibleColorEnabled end,
+                                order = 5.5,
+                                get = function(info)
+                                    local r,g,b,a = unpack(NugCastDB.notInterruptibleColor)
+                                    return r,g,b,a
+                                end,
+                                set = function(info, r, g, b, a)
+                                    NugCastDB.notInterruptibleColor = {r,g,b, a}
+                                end,
                             },
                         },
                     },
