@@ -1412,6 +1412,7 @@ do
 
         local pos = (val-self.minvalue)/(self.maxvalue-self.minvalue)
         if pos == 0 then pos = 0.001 end
+        if pos > 1 then pos = 1 end
         local h = self:GetWidth()*pos
         self.t:SetWidth(h)
         -- print ("pos: "..pos)
