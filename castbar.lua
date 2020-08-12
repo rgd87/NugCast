@@ -227,7 +227,8 @@ function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo(unit)
     self.inverted = true
-    self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
+    local castID = nil
+    self:UpdateCastingInfo(name,texture,startTime,endTime, castID, notInterruptible)
 end
 NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.UNIT_SPELLCAST_CHANNEL_START
 
@@ -241,7 +242,7 @@ function NugCast.UNIT_SPELLCAST_STOP(self, event, unit)
 end
 function NugCast.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
     if unit ~= self.unit then return end
-    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit, spell) end
+    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit) end
 end
 NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_STOP
 NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.UNIT_SPELLCAST_STOP
