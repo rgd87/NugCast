@@ -1,4 +1,4 @@
-## Interface: 80000
+## Interface: 80300
 ## Title: NugCast
 ## Author: d87
 ## Notes: Castbar addon
