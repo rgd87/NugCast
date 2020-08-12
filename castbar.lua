@@ -450,19 +450,21 @@ local ResizeTextFunc = function(self, spellFontSize)
     self.spellText:SetTextColor(unpack(NugCastDB.textColor))
 end
 
-
+local MakeBorder = function(self, tex, left, right, top, bottom, level)
+    local t = self:CreateTexture(nil,"BORDER",nil,level)
+    t:SetTexture(tex)
+    t:SetPoint("TOPLEFT", self, "TOPLEFT", left, -top)
+    t:SetPoint("BOTTOMRIGHT", self, "BOTTOMRIGHT", -right, bottom)
+    return t
+end
 
 NugCast.FillFrame = function(self, f,width,height, unit, spark)
-    local backdrop = {
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
-        insets = {left = -2, right = -2, top = -2, bottom = -2},
-    }
-
     f:SetWidth(width)
     f:SetHeight(height)
 
-    f:SetBackdrop(backdrop)
-	f:SetBackdropColor(0, 0, 0, 0.7)
+    local border = 2
+    local outline = MakeBorder(f, "Interface\\BUTTONS\\WHITE8X8", -border, -border, -border, -border, -2)
+    outline:SetVertexColor(0,0,0, 0.5)
 
     local ic = CreateFrame("Frame",nil,f)
     ic:SetPoint("TOPLEFT",f,"TOPLEFT", 0, 0)
@@ -533,18 +535,13 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
     return f
 end
 
-
 NugCast.MakeDoubleCastbar = function(self, f,width,height)
-    local backdrop = {
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 0,
-        insets = {left = -2, right = -2, top = -2, bottom = -2},
-    }
-
     f:SetWidth(width)
     f:SetHeight(height)
 
-    f:SetBackdrop(backdrop)
-    f:SetBackdropColor(0, 0, 0, 0.7)
+    local border = 2
+    local outline = MakeBorder(f, "Interface\\BUTTONS\\WHITE8X8", -border, -border, -border, -border, -2)
+    outline:SetVertexColor(0,0,0, 0.5)
 
     local texture = LSM:Fetch("statusbar", NugCastDB.barTexture)
 
