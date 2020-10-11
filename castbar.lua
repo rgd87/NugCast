@@ -200,6 +200,7 @@ function NugCast:PLAYER_LOGIN()
 end
 
 function NugCast:Reconfigure()
+    self:UpdatePosition()
     self:Resize()
     self:ResizeText()
 end
@@ -853,7 +854,11 @@ function NugCast:CreateAnchor(db_tbl)
     t:SetVertexColor(1, 0, 0)
     t:SetAllPoints(f)
 
-    f.db_tbl = db_tbl
+    f.UpdateAnchor = function(self, pos)
+        self.db_tbl = pos
+        self:SetPoint(pos.point, pos.parent, pos.to, pos.x, pos.y)
+    end
+    f:UpdateAnchor(db_tbl)
 
     f:SetScript("OnMouseDown",function(self)
         self:StartMoving()
@@ -869,8 +874,6 @@ function NugCast:CreateAnchor(db_tbl)
             opts.y = y
     end)
 
-    local pos = f.db_tbl
-    f:SetPoint(pos.point, pos.parent, pos.to, pos.x, pos.y)
     return f
 end
 
@@ -984,7 +987,11 @@ end
 
 
 
-
+function NugCast:UpdatePosition()
+    for aname, anchor in pairs(anchors) do
+        anchor:UpdateAnchor(self.db.profile.anchors[aname])
+    end
+end
 function NugCast:Resize()
     if NugCastPlayer then
         NugCastPlayer:Resize(NugCast.db.profile.player.width, NugCast.db.profile.player.height)
