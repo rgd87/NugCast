@@ -5,7 +5,7 @@ NugCast = CreateFrame("Frame",nil,UIParent)
 local NugCast = _G.NugCast
 local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
-local isClassic = select(4,GetBuildInfo()) <= 19999
+local isClassic = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
 if isClassic then
     UnitCastingInfo = CastingInfo
     UnitChannelInfo = ChannelInfo
@@ -133,8 +133,10 @@ function NugCast:PLAYER_LOGIN()
     self.db.RegisterCallback(self, "OnProfileCopied", "Reconfigure")
     self.db.RegisterCallback(self, "OnProfileReset", "Reconfigure")
 
-    self.db.global.focusCastbar = false
-    self.db.global.nameplateCastbars = false
+    if isClassic then
+        self.db.global.focusCastbar = false
+        self.db.global.nameplateCastbars = false
+    end
 
     if self.db.global.playerCastbar then
         local player = NugCast:SpawnCastBar("player", self.db.profile.player.width, self.db.profile.player.height)
