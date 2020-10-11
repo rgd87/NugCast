@@ -1054,12 +1054,7 @@ function NugCast:CreateGUI()
                 name = "Restore Defaults",
                 type = 'execute',
                 func = function()
-                    --TODO: FIx
-                    -- _G.NugCastDB = {}
-                    -- SetupDefaults(_G.NugCastDB, defaults)
-                    -- NugCastDB = _G.NugCastDB
-                    NugCast:Resize()
-                    NugCast:ResizeText()
+                    NugCast.db:ResetProfile()
                 end,
                 order = 3,
             },
