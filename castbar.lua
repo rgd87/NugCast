@@ -86,6 +86,7 @@ local defaults = {
             width = 200,
             height = 25,
             spellFontSize = 10,
+            notext = true,
         },
         target = {
             width = 250,
@@ -137,8 +138,10 @@ function NugCast:PLAYER_LOGIN()
 
     if self.db.global.playerCastbar then
         local player = NugCast:SpawnCastBar("player", self.db.profile.player.width, self.db.profile.player.height)
-        player.spellText:Hide()
-        player.timeText:Hide()
+        if self.db.profile.player.notext then
+            player.spellText:Hide()
+            player.timeText:Hide()
+        end
         CastingBarFrame:UnregisterAllEvents()
         NugCastPlayer = player
 
@@ -1005,7 +1008,16 @@ end
 
 
 function NugCast:Resize()
-    NugCastPlayer:Resize(NugCast.db.profile.player.width, NugCast.db.profile.player.height)
+    if NugCastPlayer then
+        NugCastPlayer:Resize(NugCast.db.profile.player.width, NugCast.db.profile.player.height)
+        if self.db.profile.player.notext then
+            NugCastPlayer.spellText:Hide()
+            NugCastPlayer.timeText:Hide()
+        else
+            NugCastPlayer.spellText:Show()
+            NugCastPlayer.timeText:Show()
+        end
+    end
     if NugCastTarget then
         NugCastTarget:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
     end
@@ -1504,6 +1516,17 @@ function NugCast:CreateGUI()
                                 step = 1,
                             },
                         },
+                    },
+                    textOnPlayer = {
+                        name = "Text on Player Castbar",
+                        type = "toggle",
+                        width = "full",
+                        order = 19,
+                        get = function(info) return not self.db.profile.player.notext end,
+                        set = function(info, v)
+                            self.db.profile.player.notext = not self.db.profile.player.notext
+                            NugCast:Resize()
+                        end
                     },
                     excludeTarget = {
                         name = "Nameplate Exclude Target",
