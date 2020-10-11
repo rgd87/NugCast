@@ -110,6 +110,8 @@ local defaults = {
         castColor = { 0.6, 0, 1 },
         channelColor = {200/255,50/255,95/255 },
         highlightColor = { 206/255, 4/256, 56/256 },
+        successColor = { 0.2, 0.7, 0.3 },
+        failedColor = { 1, 0, 0 },
         notInterruptibleColorEnabled = false,
         notInterruptibleColor = { 0.5, 0.5, 0.5 },
         nameplateExcludeTarget = true,
@@ -208,17 +210,27 @@ end
 
 local TimerOnUpdate = function(self, elapsed)
     local v = self.elapsed + elapsed
-    local beforeEnd = self.endTime - (v+self.startTime)
+    local remains = self.endTime - (v+self.startTime)
     self.elapsed = v
 
-    local val
-    if self.inverted then val = self.startTime + beforeEnd
-    else val = self.endTime - beforeEnd end
-    self.bar:SetValue(val)
-    self.timeText:SetFormattedText("%.1f",beforeEnd)
-    if beforeEnd <= 0 then
-        if self.Deactivate then self:Deactivate() end
-        self:Hide()
+    if self.fadingStartTime then
+        local t = GetTime() - self.fadingStartTime
+        local a = 4* math.max(0, 0.25 - t)
+        self:SetAlpha(a)
+        self.bar:SetValue(self.endTime)
+        if a < 0 then
+            self:Hide()
+        end
+    else
+        local val
+        if self.inverted then val = self.startTime + remains
+        else val = self.endTime - remains end
+        self.bar:SetValue(val)
+        self.timeText:SetFormattedText("%.1f",remains)
+        if remains <= -0.5 then
+            if self.Deactivate then self:Deactivate() end
+            self:Hide()
+        end
     end
 end
 
@@ -231,6 +243,8 @@ function NugCast.UNIT_SPELLCAST_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
     self.inverted = false
+    self.fadingStartTime = nil
+    self:SetAlpha(1)
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
 NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
@@ -239,23 +253,29 @@ function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo(unit)
     self.inverted = true
     local castID = nil
+    self.fadingStartTime = nil
+    self:SetAlpha(1)
     self:UpdateCastingInfo(name,texture,startTime,endTime, castID, notInterruptible)
 end
 NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.UNIT_SPELLCAST_CHANNEL_START
 
 
-function NugCast.UNIT_SPELLCAST_STOP(self, event, unit)
+function NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
     if unit ~= self.unit then return end
     if self.Deactivate then
         self:Deactivate()
+        self:Hide()
+        return
     end
-    self:Hide()
+    self.fadingStartTime = self.fadingStartTime or GetTime()
+    -- self:Hide()
 end
 function NugCast.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
     if unit ~= self.unit then return end
-    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit) end
+    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID) end
+    self.bar:SetColor(unpack(NugCast.db.profile.failedColor))
 end
-NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_STOP
+NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_FAILED
 NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.UNIT_SPELLCAST_STOP
 
 
@@ -279,6 +299,12 @@ function NugCast.PLAYER_FOCUS_CHANGED(self,event)
     if UnitCastingInfo("focus") then return NugCast.UNIT_SPELLCAST_START(self,event,"focus") end
     if UnitChannelInfo("focus") then return NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,"focus") end
     NugCast.UNIT_SPELLCAST_STOP(self,event,"focus")
+end
+
+function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castID)
+    if unit ~= self.unit then return end
+    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID) end
+    self.bar:SetColor(unpack(NugCast.db.profile.successColor))
 end
 
 
@@ -339,6 +365,7 @@ function NugCast.SpawnCastBar(self,unit,width,height)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_STOP", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_FAILED", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_INTERRUPTED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_SUCCEEDED", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_START", CastbarEventHandler)
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_UPDATE", CastbarEventHandler) -- only for player
         LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_STOP", CastbarEventHandler)
@@ -354,6 +381,7 @@ function NugCast.SpawnCastBar(self,unit,width,height)
         f:RegisterEvent("UNIT_SPELLCAST_STOP")
         f:RegisterEvent("UNIT_SPELLCAST_FAILED")
         f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+        f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
         f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
         f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
         f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
@@ -1038,7 +1066,9 @@ function NugCast:Resize()
     end
 end
 function NugCast:ResizeText()
-    NugCastPlayer:ResizeText(NugCast.db.profile.player.spellFontSize)
+    if NugCastPlayer then
+        NugCastPlayer:ResizeText(NugCast.db.profile.player.spellFontSize)
+    end
     if NugCastTarget then
         NugCastTarget:ResizeText(NugCast.db.profile.target.spellFontSize)
     end
@@ -1288,6 +1318,56 @@ function NugCast:CreateGUI()
                                     NugCast.db.profile.highlightColor = {r,g,b}
                                 end,
                             },
+                            successColor = {
+                                name = "Success Color",
+                                type = 'color',
+                                width = 1,
+                                order = 3.1,
+                                get = function(info)
+                                    local r,g,b = unpack(NugCast.db.profile.successColor)
+                                    return r,g,b
+                                end,
+                                set = function(info, r, g, b)
+                                    NugCast.db.profile.successColor = {r,g,b}
+                                end,
+                            },
+                            failedColor = {
+                                name = "Failed Color",
+                                type = 'color',
+                                width = 0.85,
+                                order = 3.2,
+                                get = function(info)
+                                    local r,g,b = unpack(NugCast.db.profile.failedColor)
+                                    return r,g,b
+                                end,
+                                set = function(info, r, g, b)
+                                    NugCast.db.profile.failedColor = {r,g,b}
+                                end,
+                            },
+                            notInterruptibleColorEnabled = {
+                                name = "",
+                                width = 0.15,
+                                type = "toggle",
+                                order = 5,
+                                get = function(info) return NugCast.db.profile.notInterruptibleColorEnabled end,
+                                set = function(info, v)
+                                    NugCast.db.profile.notInterruptibleColorEnabled = not NugCast.db.profile.notInterruptibleColorEnabled
+                                end
+                            },
+                            notInterruptibleColor = {
+                                name = "Non-Interruptible Color",
+                                type = 'color',
+                                width = 1,
+                                disabled = function() return not NugCast.db.profile.notInterruptibleColorEnabled end,
+                                order = 5.5,
+                                get = function(info)
+                                    local r,g,b,a = unpack(NugCast.db.profile.notInterruptibleColor)
+                                    return r,g,b,a
+                                end,
+                                set = function(info, r, g, b, a)
+                                    NugCast.db.profile.notInterruptibleColor = {r,g,b, a}
+                                end,
+                            },
                             textColor = {
                                 name = "Text Color & Alpha",
                                 type = 'color',
@@ -1314,29 +1394,6 @@ function NugCast:CreateGUI()
                                 end,
                                 values = LSM:HashTable("statusbar"),
                                 dialogControl = "LSM30_Statusbar",
-                            },
-                            notInterruptibleColorEnabled = {
-                                name = "",
-                                width = 0.2,
-                                type = "toggle",
-                                order = 5,
-                                get = function(info) return NugCast.db.profile.notInterruptibleColorEnabled end,
-                                set = function(info, v)
-                                    NugCast.db.profile.notInterruptibleColorEnabled = not NugCast.db.profile.notInterruptibleColorEnabled
-                                end
-                            },
-                            notInterruptibleColor = {
-                                name = "Non-Interruptible Color",
-                                type = 'color',
-                                disabled = function() return not NugCast.db.profile.notInterruptibleColorEnabled end,
-                                order = 5.5,
-                                get = function(info)
-                                    local r,g,b,a = unpack(NugCast.db.profile.notInterruptibleColor)
-                                    return r,g,b,a
-                                end,
-                                set = function(info, r, g, b, a)
-                                    NugCast.db.profile.notInterruptibleColor = {r,g,b, a}
-                                end,
                             },
                         },
                     },
