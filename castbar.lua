@@ -1,3 +1,5 @@
+local addonName, ns = ...
+
 NugCast = CreateFrame("Frame",nil,UIParent)
 
 local NugCast = _G.NugCast
@@ -21,103 +23,96 @@ local npCastbarsByGUID = {}
 local MAX_NAMEPLATE_CASTBARS = 4
 local anchors = {}
 
+NugCast.L = setmetatable({}, {
+    __index = function(t, k)
+        -- print(string.format('L["%s"] = ""',k:gsub("\n","\\n")));
+        return k
+    end,
+    __call = function(t,k) return t[k] end,
+})
+local L = NugCast.L
+
+local defaultFont = "Friz Quadrata TT"
+do
+    local locale = GetLocale()
+    if locale == "zhTW" or locale == "zhCN" or locale == "koKR" then
+        defaultFont = LSM.DefaultMedia["font"]
+        -- "預設" - zhTW
+        -- "默认" - zhCN
+        -- "기본 글꼴" - koKR
+    end
+end
+
 local defaults = {
-    anchors = {
+    global = {
+        playerCastbar = true,
+        targetCastbar = true,
+        focusCastbar = false,
+        nameplateCastbars = true,
+    },
+    profile = {
+        anchors = {
+            player = {
+                point = "CENTER",
+                parent = "UIParent",
+                to = "CENTER",
+                x = -100,
+                y = -300,
+            },
+            target = {
+                point = "CENTER",
+                parent = "UIParent",
+                to = "CENTER",
+                x = -120,
+                y = -100,
+            },
+            focus = {
+                point = "CENTER",
+                parent = "UIParent",
+                to = "CENTER",
+                x = -120,
+                y = 0,
+            },
+            nameplates = {
+                point = "CENTER",
+                parent = "UIParent",
+                to = "CENTER",
+                x = -50,
+                y = -137,
+            },
+        },
         player = {
-            point = "CENTER",
-            parent = "UIParent",
-            to = "CENTER",
-            x = -100,
-            y = -300,
+            width = 200,
+            height = 25,
+            spellFontSize = 10,
         },
         target = {
-            point = "CENTER",
-            parent = "UIParent",
-            to = "CENTER",
-            x = -120,
-            y = -100,
+            width = 250,
+            height = 27,
+            spellFontSize = 13,
         },
         focus = {
-            point = "CENTER",
-            parent = "UIParent",
-            to = "CENTER",
-            x = -120,
-            y = 0,
+            spellFontSize = 13,
         },
         nameplates = {
-            point = "CENTER",
-            parent = "UIParent",
-            to = "CENTER",
-            x = -50,
-            y = -137,
+            width = 180,
+            height = 18,
+            spellFontSize = 10,
         },
-    },
-    player = {
-        width = 200,
-        height = 25,
-        spellFontSize = 10,
-    },
-    target = {
-        width = 250,
-        height = 27,
-        spellFontSize = 13,
-    },
-    focus = {
-        spellFontSize = 13,
-    },
-    nameplates = {
-        width = 180,
-        height = 18,
-        spellFontSize = 10,
-    },
-    barTexture = "Aluminium",
-    spellFont = "Friz Quadrata TT",
-    timeFont = "Friz Quadrata TT",
-    timeFontSize = 8,
-    playerCastbar = true,
-    targetCastbar = true,
-    focusCastbar = false,
-    textColor = {1,1,1,0.5},
-    castColor = { 0.6, 0, 1 },
-    channelColor = {200/255,50/255,95/255 },
-    highlightColor = { 206/255, 4/256, 56/256 },
-    notInterruptibleColorEnabled = false,
-    notInterruptibleColor = { 0.5, 0.5, 0.5 },
-    nameplateExcludeTarget = true,
-    nameplateCastbars = true,
-    -- tex = "",
-}
+        barTexture = "Aluminium",
+        spellFont = defaultFont,
+        timeFont = "Friz Quadrata TT",
+        timeFontSize = 8,
 
-local function SetupDefaults(t, defaults)
-    if not defaults then return end
-    for k,v in pairs(defaults) do
-        if type(v) == "table" then
-            if t[k] == nil then
-                t[k] = CopyTable(v)
-            elseif t[k] == false then
-                t[k] = false --pass
-            else
-                SetupDefaults(t[k], v)
-            end
-        else
-            if t[k] == nil then t[k] = v end
-        end
-    end
-end
-local function RemoveDefaults(t, defaults)
-    if not defaults then return end
-    for k, v in pairs(defaults) do
-        if type(t[k]) == 'table' and type(v) == 'table' then
-            RemoveDefaults(t[k], v)
-            if next(t[k]) == nil then
-                t[k] = nil
-            end
-        elseif t[k] == v then
-            t[k] = nil
-        end
-    end
-    return t
-end
+        textColor = {1,1,1,0.5},
+        castColor = { 0.6, 0, 1 },
+        channelColor = {200/255,50/255,95/255 },
+        highlightColor = { 206/255, 4/256, 56/256 },
+        notInterruptibleColorEnabled = false,
+        notInterruptibleColor = { 0.5, 0.5, 0.5 },
+        nameplateExcludeTarget = true,
+    }
+}
 
 
 NugCast:RegisterEvent("PLAYER_LOGIN")
@@ -128,39 +123,44 @@ end)
 
 function NugCast:PLAYER_LOGIN()
     _G.NugCastDB = _G.NugCastDB or {}
-    NugCastDB = _G.NugCastDB
-    SetupDefaults(NugCastDB, defaults)
+    self:DoMigrations(_G.NugCastDB)
+    self.db = LibStub("AceDB-3.0"):New("NugCastDB", defaults, "Default")
+    -- NugCastDB = self.db
 
-    if NugCastDB.playerCastbar then
-        local player = NugCast:SpawnCastBar("player", NugCastDB.player.width, NugCastDB.player.height)
+    self.db.RegisterCallback(self, "OnProfileChanged", "Reconfigure")
+    self.db.RegisterCallback(self, "OnProfileCopied", "Reconfigure")
+    self.db.RegisterCallback(self, "OnProfileReset", "Reconfigure")
+
+    if self.db.global.playerCastbar then
+        local player = NugCast:SpawnCastBar("player", self.db.profile.player.width, self.db.profile.player.height)
         player.spellText:Hide()
         player.timeText:Hide()
         CastingBarFrame:UnregisterAllEvents()
         NugCastPlayer = player
 
-        local player_anchor = self:CreateAnchor(NugCastDB.anchors["player"])
+        local player_anchor = self:CreateAnchor(self.db.profile.anchors["player"])
         player:SetPoint("TOPLEFT",player_anchor,"BOTTOMRIGHT",0,0)
         anchors["player"] = player_anchor
     end
 
-    if NugCastDB.targetCastbar then
-        local target = NugCast:SpawnCastBar("target", NugCastDB.target.width, NugCastDB.target.height)
+    if self.db.global.targetCastbar then
+        local target = NugCast:SpawnCastBar("target", self.db.profile.target.width, self.db.profile.target.height)
         target:RegisterEvent("PLAYER_TARGET_CHANGED")
         NugCast:AddMore(target)
         NugCastTarget = target
 
-        local target_anchor = self:CreateAnchor(NugCastDB.anchors["target"])
+        local target_anchor = self:CreateAnchor(self.db.profile.anchors["target"])
         target:SetPoint("TOPLEFT",target_anchor,"BOTTOMRIGHT",0,0)
         anchors["target"] = target_anchor
     end
 
-    if NugCastDB.focusCastbar and not isClassic then
-        local focus = NugCast:SpawnCastBar("focus", NugCastDB.target.width, NugCastDB.target.height)
+    if self.db.global.focusCastbar and not isClassic then
+        local focus = NugCast:SpawnCastBar("focus", self.db.profile.target.width, self.db.profile.target.height)
         focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
         NugCast:AddMore(focus)
         NugCastFocus = focus
 
-        local focus_anchor = self:CreateAnchor(NugCastDB.anchors["focus"])
+        local focus_anchor = self:CreateAnchor(self.db.profile.anchors["focus"])
         focus:SetPoint("TOPLEFT",focus_anchor,"BOTTOMRIGHT",0,0)
         anchors["focus"] = focus_anchor
     end
@@ -168,10 +168,10 @@ function NugCast:PLAYER_LOGIN()
     -- else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
 
 
-    if NugCastDB.nameplateCastbars and not isClassic then
+    if self.db.global.nameplateCastbars and not isClassic then
         local npheader = NugCast:CreateNameplateCastbars()
         NugCastPlayerNameplateHeader = npheader
-        local nameplates_anchor = self:CreateAnchor(NugCastDB.anchors["nameplates"])
+        local nameplates_anchor = self:CreateAnchor(self.db.profile.anchors["nameplates"])
         npheader:SetPoint("TOPLEFT", nameplates_anchor,"BOTTOMRIGHT",0,0)
         -- npheader:SetPoint("CENTER", UIParent, "CENTER",0,0)
         anchors["nameplates"] = nameplates_anchor
@@ -191,8 +191,9 @@ function NugCast:PLAYER_LOGIN()
     end)
 end
 
-function NugCast:PLAYER_LOGOUT()
-    RemoveDefaults(NugCastDB, defaults)
+function NugCast:Reconfigure()
+    self:Resize()
+    self:ResizeText()
 end
 
 local TimerOnUpdate = function(self, elapsed)
@@ -284,7 +285,7 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         --     if self.shine:IsPlaying() then self.shine:Stop() end
         --     self.shine:Play()
         -- end
-        local color = coloredSpells[name] or (self.inverted and NugCastDB.channelColor or NugCastDB.castColor)
+        local color = coloredSpells[name] or (self.inverted and NugCast.db.profile.channelColor or NugCast.db.profile.castColor)
         self.bar:SetColor(unpack(color))
         self.isActive = true
         self:Show()
@@ -292,8 +293,8 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         if self.shield then
             if notInterruptible then
                 self.shield:Show()
-                if NugCastDB.notInterruptibleColorEnabled then
-                    self.bar:SetColor(unpack(NugCastDB.notInterruptibleColor))
+                if NugCast.db.profile.notInterruptibleColorEnabled then
+                    self.bar:SetColor(unpack(NugCast.db.profile.notInterruptibleColor))
                 end
             else
                 self.shield:Hide()
@@ -384,8 +385,10 @@ NugCast.AddSpark = function(self, bar)
 end
 
 NugCast.AddMore = function(self, f)
-    f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
-    f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
+    if not isClassic then
+        f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
+        f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
+    end
     local height = f:GetHeight()
     local shield = f.icon:GetParent():CreateTexture(nil,"ARTWORK",nil,2)
     shield:SetTexture([[Interface\AchievementFrame\UI-Achievement-IconFrame]])
@@ -419,7 +422,7 @@ NugCast.AddMore = function(self, f)
 end
 
 local ResizeFunc = function(self, width, height)
-    local texture = LSM:Fetch("statusbar", NugCastDB.barTexture)
+    local texture = LSM:Fetch("statusbar", NugCast.db.profile.barTexture)
     self.bar:SetStatusBarTexture(texture)
     self.bar.bg:SetTexture(texture)
 
@@ -444,11 +447,11 @@ local ResizeFunc = function(self, width, height)
 end
 
 local ResizeTextFunc = function(self, spellFontSize)
-    self.timeText:SetFont(LSM:Fetch("font", NugCastDB.timeFont), NugCastDB.timeFontSize)
-    self.timeText:SetTextColor(unpack(NugCastDB.textColor))
+    self.timeText:SetFont(LSM:Fetch("font", NugCast.db.profile.timeFont), NugCast.db.profile.timeFontSize)
+    self.timeText:SetTextColor(unpack(NugCast.db.profile.textColor))
 
-    self.spellText:SetFont(LSM:Fetch("font", NugCastDB.spellFont), spellFontSize)
-    self.spellText:SetTextColor(unpack(NugCastDB.textColor))
+    self.spellText:SetFont(LSM:Fetch("font", NugCast.db.profile.spellFont), spellFontSize)
+    self.spellText:SetTextColor(unpack(NugCast.db.profile.textColor))
 end
 
 local MakeBorder = function(self, tex, left, right, top, bottom, level)
@@ -476,7 +479,7 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
     ict:SetAllPoints(ic)
     f.icon = ict
 
-    local texture = LSM:Fetch("statusbar", NugCastDB.barTexture)
+    local texture = LSM:Fetch("statusbar", NugCast.db.profile.barTexture)
 
     if not spark then
         f.bar = CreateFrame("StatusBar",nil,f)
@@ -511,22 +514,22 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
 	f.bar.bg:SetTexture(texture)
 
     f.timeText = f.bar:CreateFontString();
-    f.timeText:SetFont(LSM:Fetch("font", NugCastDB.timeFont), NugCastDB.timeFontSize)
+    f.timeText:SetFont(LSM:Fetch("font", NugCast.db.profile.timeFont), NugCast.db.profile.timeFontSize)
     -- f.timeText:SetFont("Fonts\\FRIZQT___CYR.TTF",8)
     f.timeText:SetJustifyH("RIGHT")
     f.timeText:SetVertexColor(1,1,1)
     f.timeText:SetPoint("TOPRIGHT", f.bar, "TOPRIGHT",-6,0)
     f.timeText:SetPoint("BOTTOMLEFT", f.bar, "BOTTOMLEFT",0,0)
-    f.timeText:SetTextColor(unpack(NugCastDB.textColor))
+    f.timeText:SetTextColor(unpack(NugCast.db.profile.textColor))
 
-    local spellFontSize = NugCastDB[unit].spellFontSize
+    local spellFontSize = NugCast.db.profile[unit].spellFontSize
 
     f.spellText = f.bar:CreateFontString();
-    f.spellText:SetFont(LSM:Fetch("font", NugCastDB.spellFont), spellFontSize)
+    f.spellText:SetFont(LSM:Fetch("font", NugCast.db.profile.spellFont), spellFontSize)
     f.spellText:SetWidth(width/4*3 -12)
     f.spellText:SetHeight(height/2+1)
     f.spellText:SetJustifyH("CENTER")
-    f.spellText:SetTextColor(unpack(NugCastDB.textColor))
+    f.spellText:SetTextColor(unpack(NugCast.db.profile.textColor))
     f.spellText:SetPoint("LEFT", f.bar, "LEFT",6,0)
     -- f.spellText:SetAlpha(0.5)
 
@@ -544,7 +547,7 @@ NugCast.MakeDoubleCastbar = function(self, f,width,height)
     local outline = MakeBorder(f, "Interface\\BUTTONS\\WHITE8X8", -border, -border, -border, -border, -2)
     outline:SetVertexColor(0,0,0, 0.5)
 
-    local texture = LSM:Fetch("statusbar", NugCastDB.barTexture)
+    local texture = LSM:Fetch("statusbar", NugCast.db.profile.barTexture)
 
     local ic = CreateFrame("Frame",nil,f)
     -- ic:SetPoint("TOPLEFT",f,"TOPLEFT", 0, 0)
@@ -693,18 +696,18 @@ function NugCast:CreateNameplateCastbars()
             if bar.isActive then--and not UnitIsUnit(bar.unit, "target") then
                 bar.isTarget = UnitIsUnit(bar.unit, "target") and 1 or 0
                 if bar.isTarget == 1 then
-                    if NugCastDB.nameplateExcludeTarget then
+                    if NugCast.db.profile.nameplateExcludeTarget then
                         bar:Hide()
                     else
                         table.insert(ordered_bars, bar)
                         bar:Show()
-                        bar.bar:SetColor(unpack(NugCastDB.highlightColor))
+                        bar.bar:SetColor(unpack(NugCast.db.profile.highlightColor))
                     end
                 else
                     table.insert(ordered_bars, bar)
                     bar:Show()
-                    if not NugCastDB.nameplateExcludeTarget then
-                        local color = (bar.inverted and NugCastDB.channelColor or NugCastDB.castColor)
+                    if not NugCast.db.profile.nameplateExcludeTarget then
+                        local color = (bar.inverted and NugCast.db.profile.channelColor or NugCast.db.profile.castColor)
                         bar.bar:SetColor(unpack(color))
                     end
                 end
@@ -783,7 +786,7 @@ function NugCast:CreateNameplateCastbars()
 
     for i=1, MAX_NAMEPLATE_CASTBARS do
         local f = CreateFrame("Frame", nil, npCastbarsHeader)
-        self:FillFrame(f, NugCastDB.nameplates.width, NugCastDB.nameplates.height, "nameplates")
+        self:FillFrame(f, NugCast.db.profile.nameplates.width, NugCast.db.profile.nameplates.height, "nameplates")
         -- self.bar:SetColor(unpack(nameplateBarColor))
         self:AddMore(f)
 
@@ -875,6 +878,13 @@ local ParseOpts = function(str)
     return t
 end
 NugCast.Commands = {
+    ["gui"] = function()
+        if not NugCast.optionsPanel then
+            NugCast.optionsPanel = NugCast:CreateGUI()
+        end
+        InterfaceOptionsFrame_OpenToCategory("NugCast")
+        InterfaceOptionsFrame_OpenToCategory("NugCast")
+    end,
     ["unlock"] = function()
         for unit, anchor in pairs(anchors) do
             anchor:Show()
@@ -913,33 +923,33 @@ NugCast.Commands = {
         end
     end,
     ["nameplatebars"] = function()
-        NugCastDB.nameplateCastbars = not NugCastDB.nameplateCastbars
-        print("Nameplate castbars turned "..(NugCastDB.nameplateCastbars and "on" or "off")..". Will take effect after /reload")
+        NugCast.db.global.nameplateCastbars = not NugCast.db.global.nameplateCastbars
+        print("Nameplate castbars turned "..(NugCast.db.global.nameplateCastbars and "on" or "off")..". Will take effect after /reload")
     end,
 
     ["excludetarget"] = function()
-        NugCastDB.nameplateExcludeTarget = not NugCastDB.nameplateExcludeTarget
+        NugCast.db.profile.nameplateExcludeTarget = not NugCast.db.profile.nameplateExcludeTarget
     end,
 
     ["targetcastbar"] = function()
-        NugCastDB.targetCastbar = not NugCastDB.targetCastbar
-        print("Target castbar turned "..(NugCastDB.targetCastbar and "on" or "off")..". Will take effect after /reload")
+        NugCast.db.global.targetCastbar = not NugCast.db.global.targetCastbar
+        print("Target castbar turned "..(NugCast.db.global.targetCastbar and "on" or "off")..". Will take effect after /reload")
     end,
 
     ["set"] = function(v)
         local p = ParseOpts(v)
         local unit = p["unit"]
         if unit then
-            if p.width then NugCastDB[unit].width = p.width end
-            if p.height then NugCastDB[unit].height = p.height end
+            if p.width then NugCast.db.profile[unit].width = p.width end
+            if p.height then NugCast.db.profile[unit].height = p.height end
 
             if unit == "player" then
-                NugCastPlayer:Resize(NugCastDB.player.width, NugCastDB.player.height)
+                NugCastPlayer:Resize(NugCast.db.profile.player.width, NugCast.db.profile.player.height)
             elseif unit == "target" then
-                NugCastTarget:Resize(NugCastDB.target.width, NugCastDB.target.height)
+                NugCastTarget:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
             elseif unit == "nameplates" then
                 for i, timer in ipairs(npCastbars) do
-                    timer:Resize(NugCastDB.nameplates.width, NugCastDB.nameplates.height)
+                    timer:Resize(NugCast.db.profile.nameplates.width, NugCast.db.profile.nameplates.height)
                 end
             end
         end
@@ -949,12 +959,13 @@ NugCast.Commands = {
 function NugCast.SlashCmd(msg)
     local k,v = string.match(msg, "([%w%+%-%=]+) ?(.*)")
     if not k or k == "help" then print([[Usage:
-      |cff00ff00/spg lock|r
-      |cff00ff00/spg unlock|r
-      |cff00ff00/spg excludetarget|r
-      |cff00ff00/spg targetcastbar|r
-      |cff00ff00/spg set|r unit=<player||target||nameplates> width=<num> height=<num>
-      |cff00ff00/spg nameplatebars|r
+      |cff00ff00/nugcast gui|r
+      |cff00ff00/nugcast lock|r
+      |cff00ff00/nugcast unlock|r
+      |cff00ff00/nugcast excludetarget|r
+      |cff00ff00/nugcast targetcastbar|r
+      |cff00ff00/nugcast set|r unit=<player||target||nameplates> width=<num> height=<num>
+      |cff00ff00/nugcast nameplatebars|r
     ]]
     )end
     if NugCast.Commands[k] then
@@ -967,31 +978,40 @@ end
 
 
 function NugCast:Resize()
-
-    NugCastPlayer:Resize(NugCastDB.player.width, NugCastDB.player.height)
+    NugCastPlayer:Resize(NugCast.db.profile.player.width, NugCast.db.profile.player.height)
     if NugCastTarget then
-        NugCastTarget:Resize(NugCastDB.target.width, NugCastDB.target.height)
+        NugCastTarget:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
     end
     if NugCastFocus then
-        NugCastFocus:Resize(NugCastDB.target.width, NugCastDB.target.height)
+        NugCastFocus:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
     end
     for i, timer in ipairs(npCastbars) do
-        timer:Resize(NugCastDB.nameplates.width, NugCastDB.nameplates.height)
+        timer:Resize(NugCast.db.profile.nameplates.width, NugCast.db.profile.nameplates.height)
     end
 end
 function NugCast:ResizeText()
-    NugCastPlayer:ResizeText(NugCastDB.player.spellFontSize)
+    NugCastPlayer:ResizeText(NugCast.db.profile.player.spellFontSize)
     if NugCastTarget then
-        NugCastTarget:ResizeText(NugCastDB.target.spellFontSize)
+        NugCastTarget:ResizeText(NugCast.db.profile.target.spellFontSize)
     end
     if NugCastFocus then
-        NugCastFocus:ResizeText(NugCastDB.target.spellFontSize)
+        NugCastFocus:ResizeText(NugCast.db.profile.target.spellFontSize)
     end
     for i, timer in ipairs(npCastbars) do
-        timer:ResizeText(NugCastDB.nameplates.spellFontSize)
+        timer:ResizeText(NugCast.db.profile.nameplates.spellFontSize)
     end
 end
 
+
+function ns.GetProfileList(db)
+    local profiles = db:GetProfiles()
+    local t = {}
+    for i,v in ipairs(profiles) do
+        t[v] = v
+    end
+    return t
+end
+local GetProfileList = ns.GetProfileList
 
 function NugCast:CreateGUI()
     local opt = {
@@ -1017,9 +1037,10 @@ function NugCast:CreateGUI()
                 name = "Restore Defaults",
                 type = 'execute',
                 func = function()
-                    _G.NugCastDB = {}
-                    SetupDefaults(_G.NugCastDB, defaults)
-                    NugCastDB = _G.NugCastDB
+                    --TODO: FIx
+                    -- _G.NugCastDB = {}
+                    -- SetupDefaults(_G.NugCastDB, defaults)
+                    -- NugCastDB = _G.NugCastDB
                     NugCast:Resize()
                     NugCast:ResizeText()
                 end,
@@ -1038,43 +1059,127 @@ function NugCast:CreateGUI()
                         confirm = true,
 						confirmText = "Warning: Requires UI reloading.",
                         order = 1,
-                        get = function(info) return NugCastDB.targetCastbar end,
+                        get = function(info) return NugCast.db.global.targetCastbar end,
                         set = function(info, v)
-                            NugCastDB.targetCastbar = not NugCastDB.targetCastbar
+                            NugCast.db.global.targetCastbar = not NugCast.db.global.targetCastbar
                             ReloadUI()
                         end
                     },
                     npCastbars = {
                         name = "Nameplate Castbars",
                         type = "toggle",
+                        disabled = isClassic,
                         confirm = true,
 						confirmText = "Warning: Requires UI reloading.",
                         order = 2,
-                        get = function(info) return NugCastDB.nameplateCastbars end,
+                        get = function(info) return NugCast.db.global.nameplateCastbars end,
                         set = function(info, v)
-                            NugCastDB.nameplateCastbars = not NugCastDB.nameplateCastbars
+                            NugCast.db.global.nameplateCastbars = not NugCast.db.global.nameplateCastbars
                             ReloadUI()
                         end
-                    },
-                    excludeTarget = {
-                        name = "Exclude Target",
-                        desc = "from nameplate castbars",
-                        type = "toggle",
-                        order = 3,
-                        get = function(info) return NugCastDB.nameplateExcludeTarget end,
-                        set = function(info, v) NugCast.Commands.excludetarget() end
                     },
                     focusCastbar = {
                         name = "Focus Castbar",
                         type = "toggle",
+                        disabled = isClassic,
                         confirm = true,
 						confirmText = "Warning: Requires UI reloading.",
                         order = 4,
-                        get = function(info) return NugCastDB.focusCastbar end,
+                        get = function(info) return NugCast.db.global.focusCastbar end,
                         set = function(info, v)
-                            NugCastDB.focusCastbar = not NugCastDB.focusCastbar
+                            NugCast.db.global.focusCastbar = not NugCast.db.global.focusCastbar
                             ReloadUI()
                         end
+                    },
+                },
+            },
+            currentProfile = {
+                type = 'group',
+                order = 5,
+                name = L"Current Profile",
+                guiInline = true,
+                args = {
+                    curProfile = {
+                        name = "",
+                        type = 'select',
+                        width = 1.5,
+                        order = 1,
+                        values = function()
+                            return ns.GetProfileList(NugCast.db)
+                        end,
+                        get = function(info)
+                            return NugCast.db:GetCurrentProfile()
+                        end,
+                        set = function(info, v)
+                            NugCast.db:SetProfile(v)
+                        end,
+                    },
+                    copyButton = {
+                        name = L"Copy",
+                        type = 'execute',
+                        order = 2,
+                        width = 0.5,
+                        func = function(info)
+                            local p = NugCast.db:GetCurrentProfile()
+                            ns.storedProfile = p
+                        end,
+                    },
+                    pasteButton = {
+                        name = L"Paste",
+                        type = 'execute',
+                        order = 3,
+                        width = 0.5,
+                        disabled = function()
+                            return ns.storedProfile == nil
+                        end,
+                        func = function(info)
+                            if ns.storedProfile then
+                                NugCast.db:CopyProfile(ns.storedProfile, true)
+                            end
+                        end,
+                    },
+                    deleteButton = {
+                        name = L"Delete",
+                        type = 'execute',
+                        order = 4,
+                        confirm = true,
+                        confirmText = L"Are you sure?",
+                        width = 0.5,
+                        disabled = function()
+                            return NugCast.db:GetCurrentProfile() == "Default"
+                        end,
+                        func = function(info)
+                            local p = NugCast.db:GetCurrentProfile()
+                            NugCast.db:SetProfile("Default")
+                            NugCast.db:DeleteProfile(p, true)
+                        end,
+                    },
+                    newProfileName = {
+                        name = L"New Profile Name",
+                        type = 'input',
+                        order = 5,
+                        width = 2,
+                        get = function(info) return ns.newProfileName end,
+                        set = function(info, v)
+                            ns.newProfileName = v
+                        end,
+                    },
+                    createButton = {
+                        name = L"Create New Profile",
+                        type = 'execute',
+                        order = 6,
+                        disabled = function()
+                            return not ns.newProfileName
+                            or strlenutf8(ns.newProfileName) == 0
+                            or NugCast.db.profiles[ns.newProfileName]
+                        end,
+                        func = function(info)
+                            if ns.newProfileName and strlenutf8(ns.newProfileName) > 0 then
+                                NugCast.db:SetProfile(ns.newProfileName)
+                                NugCast.db:CopyProfile("Default", true)
+                                ns.newProfileName = ""
+                            end
+                        end,
                     },
                 },
             },
@@ -1093,11 +1198,11 @@ function NugCast:CreateGUI()
                                 name = "Cast Color",
                                 type = 'color',
                                 get = function(info)
-                                    local r,g,b = unpack(NugCastDB.castColor)
+                                    local r,g,b = unpack(NugCast.db.profile.castColor)
                                     return r,g,b
                                 end,
                                 set = function(info, r, g, b)
-                                    NugCastDB.castColor = {r,g,b}
+                                    NugCast.db.profile.castColor = {r,g,b}
                                 end,
                                 order = 1,
                             },
@@ -1106,25 +1211,26 @@ function NugCast:CreateGUI()
                                 type = 'color',
                                 order = 2,
                                 get = function(info)
-                                    local r,g,b = unpack(NugCastDB.channelColor)
+                                    local r,g,b = unpack(NugCast.db.profile.channelColor)
                                     return r,g,b
                                 end,
                                 set = function(info, r, g, b)
-                                    NugCastDB.channelColor = {r,g,b}
+                                    NugCast.db.profile.channelColor = {r,g,b}
                                 end,
                             },
                             highlightColor = {
                                 name = "Highlight Color",
                                 type = 'color',
+                                disabled = isClassic,
                                 desc = "Used in nameplate castbars to mark current target when it's not excluded",
                                 width = 1.3,
                                 order = 3,
                                 get = function(info)
-                                    local r,g,b = unpack(NugCastDB.highlightColor)
+                                    local r,g,b = unpack(NugCast.db.profile.highlightColor)
                                     return r,g,b
                                 end,
                                 set = function(info, r, g, b)
-                                    NugCastDB.highlightColor = {r,g,b}
+                                    NugCast.db.profile.highlightColor = {r,g,b}
                                 end,
                             },
                             textColor = {
@@ -1133,11 +1239,11 @@ function NugCast:CreateGUI()
                                 hasAlpha = true,
                                 order = 6,
                                 get = function(info)
-                                    local r,g,b,a = unpack(NugCastDB.textColor)
+                                    local r,g,b,a = unpack(NugCast.db.profile.textColor)
                                     return r,g,b,a
                                 end,
                                 set = function(info, r, g, b, a)
-                                    NugCastDB.textColor = {r,g,b, a}
+                                    NugCast.db.profile.textColor = {r,g,b, a}
                                     NugCast:ResizeText()
                                 end,
                             },
@@ -1146,9 +1252,9 @@ function NugCast:CreateGUI()
                                 name = "Texture",
                                 order = 10,
                                 desc = "Set the statusbar texture.",
-                                get = function(info) return NugCastDB.barTexture end,
+                                get = function(info) return NugCast.db.profile.barTexture end,
                                 set = function(info, value)
-                                    NugCastDB.barTexture = value
+                                    NugCast.db.profile.barTexture = value
                                     NugCast:Resize()
                                 end,
                                 values = LSM:HashTable("statusbar"),
@@ -1159,22 +1265,22 @@ function NugCast:CreateGUI()
                                 width = 0.2,
                                 type = "toggle",
                                 order = 5,
-                                get = function(info) return NugCastDB.notInterruptibleColorEnabled end,
+                                get = function(info) return NugCast.db.profile.notInterruptibleColorEnabled end,
                                 set = function(info, v)
-                                    NugCastDB.notInterruptibleColorEnabled = not NugCastDB.notInterruptibleColorEnabled
+                                    NugCast.db.profile.notInterruptibleColorEnabled = not NugCast.db.profile.notInterruptibleColorEnabled
                                 end
                             },
                             notInterruptibleColor = {
                                 name = "Non-Interruptible Color",
                                 type = 'color',
-                                disabled = function() return not NugCastDB.notInterruptibleColorEnabled end,
+                                disabled = function() return not NugCast.db.profile.notInterruptibleColorEnabled end,
                                 order = 5.5,
                                 get = function(info)
-                                    local r,g,b,a = unpack(NugCastDB.notInterruptibleColor)
+                                    local r,g,b,a = unpack(NugCast.db.profile.notInterruptibleColor)
                                     return r,g,b,a
                                 end,
                                 set = function(info, r, g, b, a)
-                                    NugCastDB.notInterruptibleColor = {r,g,b, a}
+                                    NugCast.db.profile.notInterruptibleColor = {r,g,b, a}
                                 end,
                             },
                         },
@@ -1188,9 +1294,9 @@ function NugCast:CreateGUI()
                             playerWidth = {
                                 name = "Player Bar Width",
                                 type = "range",
-                                get = function(info) return NugCastDB.player.width end,
+                                get = function(info) return NugCast.db.profile.player.width end,
                                 set = function(info, v)
-                                    NugCastDB.player.width = tonumber(v)
+                                    NugCast.db.profile.player.width = tonumber(v)
                                     NugCast:Resize()
                                 end,
                                 min = 30,
@@ -1201,9 +1307,9 @@ function NugCast:CreateGUI()
                             playerHeight = {
                                 name = "Player Bar Height",
                                 type = "range",
-                                get = function(info) return NugCastDB.player.height end,
+                                get = function(info) return NugCast.db.profile.player.height end,
                                 set = function(info, v)
-                                    NugCastDB.player.height = tonumber(v)
+                                    NugCast.db.profile.player.height = tonumber(v)
                                     NugCast:Resize()
                                 end,
                                 min = 10,
@@ -1215,9 +1321,9 @@ function NugCast:CreateGUI()
                                 name = "Player Font Size",
                                 type = "range",
                                 order = 3,
-                                get = function(info) return NugCastDB.player.spellFontSize end,
+                                get = function(info) return NugCast.db.profile.player.spellFontSize end,
                                 set = function(info, v)
-                                    NugCastDB.player.spellFontSize = tonumber(v)
+                                    NugCast.db.profile.player.spellFontSize = tonumber(v)
                                     NugCast:ResizeText()
                                 end,
                                 min = 5,
@@ -1228,9 +1334,9 @@ function NugCast:CreateGUI()
                             targetWidth = {
                                 name = "Target Bar Width",
                                 type = "range",
-                                get = function(info) return NugCastDB.target.width end,
+                                get = function(info) return NugCast.db.profile.target.width end,
                                 set = function(info, v)
-                                    NugCastDB.target.width = tonumber(v)
+                                    NugCast.db.profile.target.width = tonumber(v)
                                     NugCast:Resize()
                                 end,
                                 min = 30,
@@ -1241,9 +1347,9 @@ function NugCast:CreateGUI()
                             targetHeight = {
                                 name = "Target Bar Height",
                                 type = "range",
-                                get = function(info) return NugCastDB.target.height end,
+                                get = function(info) return NugCast.db.profile.target.height end,
                                 set = function(info, v)
-                                    NugCastDB.target.height = tonumber(v)
+                                    NugCast.db.profile.target.height = tonumber(v)
                                     NugCast:Resize()
                                 end,
                                 min = 10,
@@ -1255,9 +1361,9 @@ function NugCast:CreateGUI()
                                 name = "Target Font Size",
                                 type = "range",
                                 order = 6,
-                                get = function(info) return NugCastDB.target.spellFontSize end,
+                                get = function(info) return NugCast.db.profile.target.spellFontSize end,
                                 set = function(info, v)
-                                    NugCastDB.target.spellFontSize = tonumber(v)
+                                    NugCast.db.profile.target.spellFontSize = tonumber(v)
                                     NugCast:ResizeText()
                                 end,
                                 min = 5,
@@ -1268,9 +1374,10 @@ function NugCast:CreateGUI()
                             nameplatesWidth = {
                                 name = "Nameplates Bar Width",
                                 type = "range",
-                                get = function(info) return NugCastDB.nameplates.width end,
+                                disabled = isClassic,
+                                get = function(info) return NugCast.db.profile.nameplates.width end,
                                 set = function(info, v)
-                                    NugCastDB.nameplates.width = tonumber(v)
+                                    NugCast.db.profile.nameplates.width = tonumber(v)
                                     NugCast:Resize()
                                 end,
                                 min = 30,
@@ -1281,9 +1388,10 @@ function NugCast:CreateGUI()
                             nameplatesHeight = {
                                 name = "Nameplates Bar Height",
                                 type = "range",
-                                get = function(info) return NugCastDB.nameplates.height end,
+                                disabled = isClassic,
+                                get = function(info) return NugCast.db.profile.nameplates.height end,
                                 set = function(info, v)
-                                    NugCastDB.nameplates.height = tonumber(v)
+                                    NugCast.db.profile.nameplates.height = tonumber(v)
                                     NugCast:Resize()
                                 end,
                                 min = 10,
@@ -1294,10 +1402,11 @@ function NugCast:CreateGUI()
                             nameplateFontSize = {
                                 name = "Enemies Font Size",
                                 type = "range",
+                                disabled = isClassic,
                                 order = 9,
-                                get = function(info) return NugCastDB.nameplates.spellFontSize end,
+                                get = function(info) return NugCast.db.profile.nameplates.spellFontSize end,
                                 set = function(info, v)
-                                    NugCastDB.nameplates.spellFontSize = tonumber(v)
+                                    NugCast.db.profile.nameplates.spellFontSize = tonumber(v)
                                     NugCast:ResizeText()
                                 end,
                                 min = 5,
@@ -1320,9 +1429,9 @@ function NugCast:CreateGUI()
                                 name = "Spell Font",
                                 order = 1,
                                 desc = "Set the statusbar texture.",
-                                get = function(info) return NugCastDB.spellFont end,
+                                get = function(info) return NugCast.db.profile.spellFont end,
                                 set = function(info, value)
-                                    NugCastDB.spellFont = value
+                                    NugCast.db.profile.spellFont = value
                                     NugCast:ResizeText()
                                 end,
                                 values = LSM:HashTable("font"),
@@ -1334,9 +1443,9 @@ function NugCast:CreateGUI()
                                 name = "Time Font",
                                 order = 3,
                                 desc = "Set the statusbar texture.",
-                                get = function(info) return NugCastDB.timeFont end,
+                                get = function(info) return NugCast.db.profile.timeFont end,
                                 set = function(info, value)
-                                    NugCastDB.timeFont = value
+                                    NugCast.db.profile.timeFont = value
                                     NugCast:ResizeText()
                                 end,
                                 values = LSM:HashTable("font"),
@@ -1346,9 +1455,9 @@ function NugCast:CreateGUI()
                                 name = "Time Font Size",
                                 type = "range",
                                 order = 4,
-                                get = function(info) return NugCastDB.timeFontSize end,
+                                get = function(info) return NugCast.db.profile.timeFontSize end,
                                 set = function(info, v)
-                                    NugCastDB.timeFontSize = tonumber(v)
+                                    NugCast.db.profile.timeFontSize = tonumber(v)
                                     NugCast:ResizeText()
                                 end,
                                 min = 5,
@@ -1356,6 +1465,16 @@ function NugCast:CreateGUI()
                                 step = 1,
                             },
                         },
+                    },
+                    excludeTarget = {
+                        name = "Nameplate Exclude Target",
+                        desc = "from nameplate castbars",
+                        type = "toggle",
+                        disabled = isClassic,
+                        width = "full",
+                        order = 20,
+                        get = function(info) return NugCast.db.profile.nameplateExcludeTarget end,
+                        set = function(info, v) NugCast.Commands.excludetarget() end
                     },
 
                 },
@@ -1447,5 +1566,51 @@ do
         f:Show()
 
         return f
+    end
+end
+
+
+do
+    local CURRENT_DB_VERSION = 1
+    function NugCast:DoMigrations(db)
+        if not next(db) or db.DB_VERSION == CURRENT_DB_VERSION then -- skip if db is empty or current
+            db.DB_VERSION = CURRENT_DB_VERSION
+            return
+        end
+
+        if db.DB_VERSION == nil then
+            db.global = {}
+            db.global.playerCastbar = db.playerCastbar
+            db.global.targetCastbar = db.targetCastbar
+            db.global.focusCastbar = db.focusCastbar
+            db.global.nameplateCastbars = db.nameplateCastbars
+
+            db.profiles = {
+                Default = {}
+            }
+            local default_profile = db.profiles["Default"]
+
+            default_profile.anchors = db.anchors
+            default_profile.player = db.player
+            default_profile.target = db.target
+            default_profile.focus = db.focus
+            default_profile.nameplates = db.nameplates
+            default_profile.barTexture = db.barTexture
+            default_profile.spellFont = db.spellFont
+            default_profile.timeFont = db.timeFont
+            default_profile.timeFontSize = db.timeFontSize
+            default_profile.textColor = db.textColor
+            default_profile.castColor = db.castColor
+            default_profile.channelColor = db.channelColor
+            default_profile.highlightColor = db.highlightColor
+            default_profile.notInterruptibleColorEnabled = db.notInterruptibleColorEnabled
+            default_profile.notInterruptibleColor = db.notInterruptibleColor
+            default_profile.nameplateExcludeTarget = db.nameplateExcludeTarget
+
+
+            db.DB_VERSION = 1
+        end
+
+        db.DB_VERSION = CURRENT_DB_VERSION
     end
 end
