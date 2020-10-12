@@ -222,7 +222,7 @@ local TimerOnUpdate = function(self, elapsed)
         end
     else
         local val
-        if self.inverted then val = self.startTime + remains
+        if self.channeling then val = self.startTime + remains
         else val = self.endTime - remains end
         self.bar:SetValue(val)
         self.timeText:SetFormattedText("%.1f",remains)
@@ -241,7 +241,7 @@ local coloredSpells = {}
 function NugCast.UNIT_SPELLCAST_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
-    self.inverted = false
+    self.channeling = false
     self.fadingStartTime = nil
     self:SetAlpha(1)
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
@@ -250,7 +250,7 @@ NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
 function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo(unit)
-    self.inverted = true
+    self.channeling = true
     local castID = nil
     self.fadingStartTime = nil
     self:SetAlpha(1)
@@ -302,6 +302,7 @@ end
 
 function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castID)
     if unit ~= self.unit then return end
+    if self.channeling then return end
     if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID) end
     self.bar:SetColor(unpack(NugCast.db.profile.successColor))
 end
@@ -320,7 +321,7 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         --     if self.shine:IsPlaying() then self.shine:Stop() end
         --     self.shine:Play()
         -- end
-        local color = coloredSpells[name] or (self.inverted and NugCast.db.profile.channelColor or NugCast.db.profile.castColor)
+        local color = coloredSpells[name] or (self.channeling and NugCast.db.profile.channelColor or NugCast.db.profile.castColor)
         self.bar:SetColor(unpack(color))
         self.isActive = true
         self:Show()
@@ -744,7 +745,7 @@ function NugCast:CreateNameplateCastbars()
                     table.insert(ordered_bars, bar)
                     bar:Show()
                     if not NugCast.db.profile.nameplateExcludeTarget then
-                        local color = (bar.inverted and NugCast.db.profile.channelColor or NugCast.db.profile.castColor)
+                        local color = (bar.channeling and NugCast.db.profile.channelColor or NugCast.db.profile.castColor)
                         bar.bar:SetColor(unpack(color))
                     end
                 end
