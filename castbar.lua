@@ -271,8 +271,10 @@ function NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
 end
 function NugCast.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
     if unit ~= self.unit then return end
-    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID) end
-    self.bar:SetColor(unpack(NugCast.db.profile.failedColor))
+    if self.castID == castID then
+        NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
+        self.bar:SetColor(unpack(NugCast.db.profile.failedColor))
+    end
 end
 NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_FAILED
 NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.UNIT_SPELLCAST_STOP
@@ -303,8 +305,10 @@ end
 function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castID)
     if unit ~= self.unit then return end
     if self.channeling then return end
-    if self.castID == castID then NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID) end
-    self.bar:SetColor(unpack(NugCast.db.profile.successColor))
+    if self.castID == castID then
+        NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
+        self.bar:SetColor(unpack(NugCast.db.profile.successColor))
+    end
 end
 
 
