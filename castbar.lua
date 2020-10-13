@@ -104,6 +104,7 @@ local defaults = {
         spellFont = defaultFont,
         timeFont = "Friz Quadrata TT",
         timeFontSize = 8,
+        borderType = "1PX",
 
         textColor = {1,1,1,0.5},
         castColor = { 0.6, 0, 1 },
@@ -459,6 +460,68 @@ NugCast.AddMore = function(self, f)
     -- f.shine = sag
 end
 
+local function UpdateFrameBorderFunc(self)
+    local borderType = NugCast.db.profile.borderType
+
+    if self.border then self.border:Hide() end
+    if self.backdrop then self.backdrop:Hide() end
+
+    if borderType == "2PX" then
+        self.backdrop = self.backdrop or self:CreateTexture(nil, "BACKGROUND", nil, -2)
+        local backdrop = self.backdrop
+        -- local offset = pixelperfect(2)
+        local offset = 2
+        backdrop:SetTexture("Interface\\BUTTONS\\WHITE8X8")
+        backdrop:SetVertexColor(0,0,0, 0.5)
+        backdrop:SetPoint("TOPLEFT", -offset, offset)
+        backdrop:SetPoint("BOTTOMRIGHT", offset, -offset)
+        backdrop:Show()
+
+    elseif borderType == "1PX" then
+        self.backdrop = self.backdrop or self:CreateTexture(nil, "BACKGROUND", nil, -5)
+        local backdrop = self.backdrop
+        -- local offset = pixelperfect(1)
+        local offset = 1
+        backdrop:SetTexture("Interface\\BUTTONS\\WHITE8X8")
+        backdrop:SetVertexColor(0,0,0, 1)
+        backdrop:SetPoint("TOPLEFT", -offset, offset)
+        backdrop:SetPoint("BOTTOMRIGHT", offset, -offset)
+        backdrop:Show()
+
+    elseif borderType == "TOOLTIP" then
+        self.border = self.border or CreateFrame("Frame", nil, self, BackdropTemplateMixin and "BackdropTemplate")
+        local border = self.border
+        border:SetPoint("TOPLEFT", -3, 3)
+        border:SetPoint("BOTTOMRIGHT", 3, -3)
+        border:SetBackdrop({
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 16,
+            -- insets = {left = -5, right = -5, top = -5, bottom = -5},
+        })
+        border:SetBackdropBorderColor(0.55,0.55,0.55)
+        border:Show()
+    elseif borderType == "STATUSBAR" then
+        self.border = self.border or CreateFrame("Frame", nil, self, BackdropTemplateMixin and "BackdropTemplate")
+        local border = self.border
+        border:SetPoint("TOPLEFT", -2, 3)
+        border:SetPoint("BOTTOMRIGHT", 2, -3)
+        border:SetBackdrop({
+            edgeFile = "Interface\\AddOns\\NugCast\\border_statusbar", edgeSize = 8, tileEdge = false,
+        })
+        border:SetBackdropBorderColor(1,1,1)
+        border:Show()
+    elseif borderType == "3PX" then
+        self.border = self.border or CreateFrame("Frame", nil, self, BackdropTemplateMixin and "BackdropTemplate")
+        local border = self.border
+        border:SetPoint("TOPLEFT", -2, 2)
+        border:SetPoint("BOTTOMRIGHT", 2, -2)
+        border:SetBackdrop({
+            edgeFile = "Interface\\AddOns\\NugCast\\border_3px", edgeSize = 8, tileEdge = false,
+        })
+        border:SetBackdropBorderColor(0.4,0.4,0.4)
+        border:Show()
+    end
+end
+
 local ResizeFunc = function(self, width, height)
     local texture = LSM:Fetch("statusbar", NugCast.db.profile.barTexture)
     self.bar:SetStatusBarTexture(texture)
@@ -504,14 +567,15 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
     f:SetWidth(width)
     f:SetHeight(height)
 
-    local border = 2
-    local outline = MakeBorder(f, "Interface\\BUTTONS\\WHITE8X8", -border, -border, -border, -border, -2)
-    outline:SetVertexColor(0,0,0, 0.5)
+    -- local border = 2
+    -- local outline = MakeBorder(f, "Interface\\BUTTONS\\WHITE8X8", -border, -border, -border, -border, -2)
+    -- outline:SetVertexColor(0,0,0, 0.5)
 
     local ic = CreateFrame("Frame",nil,f)
     ic:SetPoint("TOPLEFT",f,"TOPLEFT", 0, 0)
     ic:SetWidth(height)
     ic:SetHeight(height)
+    ic:SetFrameLevel(1)
     local ict = ic:CreateTexture(nil,"ARTWORK",nil,0)
     ict:SetTexCoord(.07, .93, .07, .93)
     ict:SetAllPoints(ic)
@@ -526,6 +590,7 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
         -- so i'm making my own status bar with texcoord
         f.bar = self:CreateHorizontalBar(nil,f)
     end
+    f.bar:SetFrameLevel(1)
     f.bar:SetFrameStrata("MEDIUM")
     f.bar:SetStatusBarTexture(texture)
     f.bar:SetHeight(height)
@@ -537,8 +602,10 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
     end
 
     f.Resize = ResizeFunc
-
+    f.UpdateFrameBorder = UpdateFrameBorderFunc
     f.ResizeText = ResizeTextFunc
+
+    f:UpdateFrameBorder()
 
 
     local m = 0.4
@@ -1031,12 +1098,15 @@ function NugCast:Resize()
             NugCastPlayer.spellText:Show()
             NugCastPlayer.timeText:Show()
         end
+        NugCastPlayer:UpdateFrameBorder()
     end
     if NugCastTarget then
         NugCastTarget:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
+        NugCastTarget:UpdateFrameBorder()
     end
     if NugCastFocus then
         NugCastFocus:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
+        NugCastFocus:UpdateFrameBorder()
     end
     for i, timer in ipairs(npCastbars) do
         timer:Resize(NugCast.db.profile.nameplates.width, NugCast.db.profile.nameplates.height)
