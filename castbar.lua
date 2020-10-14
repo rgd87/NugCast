@@ -119,7 +119,6 @@ local defaults = {
 
 
 NugCast:RegisterEvent("PLAYER_LOGIN")
-NugCast:RegisterEvent("PLAYER_LOGOUT")
 NugCast:SetScript("OnEvent", function(self, event, ...)
     return self[event](self, event, ...)
 end)
