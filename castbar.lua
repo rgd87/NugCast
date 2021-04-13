@@ -5,8 +5,9 @@ NugCast = CreateFrame("Frame",nil,UIParent)
 local NugCast = _G.NugCast
 local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
-local isClassic = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
-if isClassic then
+local APILevel = math.floor(select(4,GetBuildInfo())/10000)
+local isClassic = APILevel <= 2
+if APILevel == 1 then
     UnitCastingInfo = CastingInfo
     UnitChannelInfo = ChannelInfo
 end
@@ -14,7 +15,7 @@ end
 local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
-local LibCC = isClassic and LibStub("LibClassicCasterino", true)
+local LibCC = APILevel == 1 and LibStub("LibClassicCasterino", true)
 
 LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCast\statusbar.tga]])
 
@@ -134,7 +135,7 @@ function NugCast:PLAYER_LOGIN()
     self.db.RegisterCallback(self, "OnProfileCopied", "Reconfigure")
     self.db.RegisterCallback(self, "OnProfileReset", "Reconfigure")
 
-    if isClassic then
+    if APILevel == 1 then
         self.db.global.focusCastbar = false
         self.db.global.nameplateCastbars = false
     end
@@ -164,7 +165,7 @@ function NugCast:PLAYER_LOGIN()
         anchors["target"] = target_anchor
     end
 
-    if self.db.global.focusCastbar and not isClassic then
+    if self.db.global.focusCastbar and not APILevel == 1 then
         local focus = NugCast:SpawnCastBar("focus", self.db.profile.target.width, self.db.profile.target.height)
         focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
         NugCast:AddMore(focus)
