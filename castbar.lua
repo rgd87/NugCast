@@ -5,8 +5,9 @@ NugCast = CreateFrame("Frame",nil,UIParent)
 local NugCast = _G.NugCast
 local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
-local isClassic = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
-if isClassic then
+local APILevel = math.floor(select(4,GetBuildInfo())/10000)
+local isClassic = APILevel <= 2
+if APILevel == 1 then
     UnitCastingInfo = CastingInfo
     UnitChannelInfo = ChannelInfo
 end
@@ -14,6 +15,7 @@ end
 local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
+local LibCC = APILevel == 1 and LibStub("LibClassicCasterino", true)
 
 LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCast\statusbar.tga]])
 
@@ -133,7 +135,7 @@ function NugCast:PLAYER_LOGIN()
     self.db.RegisterCallback(self, "OnProfileCopied", "Reconfigure")
     self.db.RegisterCallback(self, "OnProfileReset", "Reconfigure")
 
-    if isClassic then
+    if APILevel == 1 then
         self.db.global.focusCastbar = false
         self.db.global.nameplateCastbars = false
     end
@@ -163,7 +165,7 @@ function NugCast:PLAYER_LOGIN()
         anchors["target"] = target_anchor
     end
 
-    if self.db.global.focusCastbar and not isClassic then
+    if self.db.global.focusCastbar and APILevel > 1 then
         local focus = NugCast:SpawnCastBar("focus", self.db.profile.target.width, self.db.profile.target.height)
         focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
         NugCast:AddMore(focus)
@@ -356,15 +358,37 @@ function NugCast.SpawnCastBar(self,unit,width,height)
     -- end
 
     f:Hide()
-    f:RegisterEvent("UNIT_SPELLCAST_START")
-    f:RegisterEvent("UNIT_SPELLCAST_DELAYED")
-    f:RegisterEvent("UNIT_SPELLCAST_STOP")
-    f:RegisterEvent("UNIT_SPELLCAST_FAILED")
-    f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-    f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
-    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
-    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    if LibCC then
+        local CastbarEventHandler = function(event, ...)
+            local self = f
+            return NugCast[event](self, event, ...)
+        end
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_START", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_DELAYED", CastbarEventHandler) -- only for player
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_STOP", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_FAILED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_INTERRUPTED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_SUCCEEDED", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_START", CastbarEventHandler)
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_UPDATE", CastbarEventHandler) -- only for player
+        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_STOP", CastbarEventHandler)
+        UnitCastingInfo = function(unit)
+            return LibCC:UnitCastingInfo(unit)
+        end
+        UnitChannelInfo = function(unit)
+            return LibCC:UnitChannelInfo(unit)
+        end
+    else
+        f:RegisterEvent("UNIT_SPELLCAST_START")
+        f:RegisterEvent("UNIT_SPELLCAST_DELAYED")
+        f:RegisterEvent("UNIT_SPELLCAST_STOP")
+        f:RegisterEvent("UNIT_SPELLCAST_FAILED")
+        f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+        f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
+        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    end
     -- These two are only for target and focus
     -- f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
     -- f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
@@ -426,7 +450,7 @@ NugCast.AddSpark = function(self, bar)
 end
 
 NugCast.AddMore = function(self, f)
-    if not isClassic then
+    if APILevel >= 3 then
         f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
         f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
     end
@@ -1133,7 +1157,7 @@ function NugCast:CreateGUI()
                     npCastbars = {
                         name = "Nameplate Castbars",
                         type = "toggle",
-                        disabled = isClassic,
+                        disabled = APILevel == 1,
                         confirm = true,
 						confirmText = "Warning: Requires UI reloading.",
                         order = 2,
@@ -1146,7 +1170,7 @@ function NugCast:CreateGUI()
                     focusCastbar = {
                         name = "Focus Castbar",
                         type = "toggle",
-                        disabled = isClassic,
+                        disabled = APILevel == 1,
                         confirm = true,
 						confirmText = "Warning: Requires UI reloading.",
                         order = 4,
@@ -1286,7 +1310,7 @@ function NugCast:CreateGUI()
                             highlightColor = {
                                 name = "Highlight Color",
                                 type = 'color',
-                                disabled = isClassic,
+                                disabled = APILevel == 1,
                                 desc = "Used in nameplate castbars to mark current target when it's not excluded",
                                 width = 1.3,
                                 order = 3,
@@ -1466,7 +1490,7 @@ function NugCast:CreateGUI()
                             nameplatesWidth = {
                                 name = "Nameplates Bar Width",
                                 type = "range",
-                                disabled = isClassic,
+                                disabled = APILevel == 1,
                                 get = function(info) return NugCast.db.profile.nameplates.width end,
                                 set = function(info, v)
                                     NugCast.db.profile.nameplates.width = tonumber(v)
@@ -1480,7 +1504,7 @@ function NugCast:CreateGUI()
                             nameplatesHeight = {
                                 name = "Nameplates Bar Height",
                                 type = "range",
-                                disabled = isClassic,
+                                disabled = APILevel == 1,
                                 get = function(info) return NugCast.db.profile.nameplates.height end,
                                 set = function(info, v)
                                     NugCast.db.profile.nameplates.height = tonumber(v)
@@ -1494,7 +1518,7 @@ function NugCast:CreateGUI()
                             nameplateFontSize = {
                                 name = "Enemies Font Size",
                                 type = "range",
-                                disabled = isClassic,
+                                disabled = APILevel == 1,
                                 order = 9,
                                 get = function(info) return NugCast.db.profile.nameplates.spellFontSize end,
                                 set = function(info, v)
@@ -1573,7 +1597,7 @@ function NugCast:CreateGUI()
                         name = "Nameplate Exclude Target",
                         desc = "from nameplate castbars",
                         type = "toggle",
-                        disabled = isClassic,
+                        disabled = APILevel == 1,
                         width = "full",
                         order = 20,
                         get = function(info) return NugCast.db.profile.nameplateExcludeTarget end,
