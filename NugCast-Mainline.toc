@@ -1,4 +1,4 @@
-## Interface: 90005
+## Interface: 90001
 ## Title: NugCast
 ## Author: d87
 ## Notes: Castbar addon
