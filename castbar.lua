@@ -241,7 +241,11 @@ local coloredSpells = {}
 
 function NugCast.UNIT_SPELLCAST_START(self,event,unit)
     if unit ~= self.unit then return end
-    local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
+    local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible, spellID = UnitCastingInfo(unit)
+    if APILevel == 2 then
+        -- spellID = notInterruptible
+        notInterruptible = false
+    end
     self.channeling = false
     self.fadingStartTime = nil
     self:SetAlpha(1)
@@ -251,6 +255,10 @@ NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
 function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo(unit)
+    if APILevel == 2 then
+        -- spellID = notInterruptible
+        notInterruptible = false
+    end
     self.channeling = true
     local castID = nil
     self.fadingStartTime = nil
