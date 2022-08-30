@@ -1,4 +1,4 @@
-## Interface: 11401
+## Interface: 30400
 ## Title: NugCast
 ## Author: d87
 ## Notes: Castbar addon
@@ -15,6 +15,5 @@ Libs\AceGUI-3.0\AceGUI-3.0.xml
 Libs\AceConfig-3.0\AceConfig-3.0.xml
 Libs\LibSharedMedia-3.0\lib.xml
 Libs\AceGUI-3.0-SharedMediaWidgets\widget.xml
-Libs\LibClassicCasterino\LibClassicCasterino.lua
 
 castbar.lua

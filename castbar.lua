@@ -458,7 +458,7 @@ NugCast.AddSpark = function(self, bar)
 end
 
 NugCast.AddMore = function(self, f)
-    if APILevel >= 3 then
+    if APILevel >= 4 then
         f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
         f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
     end
