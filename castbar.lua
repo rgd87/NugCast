@@ -146,7 +146,9 @@ function NugCast:PLAYER_LOGIN()
             player.spellText:Hide()
             player.timeText:Hide()
         end
-        CastingBarFrame:UnregisterAllEvents()
+        if CastingBarFrame then
+            CastingBarFrame:UnregisterAllEvents()
+        end
         NugCastPlayer = player
 
         local player_anchor = self:CreateAnchor(self.db.profile.anchors["player"])
