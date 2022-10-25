@@ -907,6 +907,7 @@ function NugCast:CreateAnchor(db_tbl)
     f:SetWidth(20)
     f:EnableMouse(true)
     f:SetMovable(true)
+    f:SetFrameStrata("HIGH")
     f:Hide()
 
     local t = f:CreateTexture(nil,"BACKGROUND")
