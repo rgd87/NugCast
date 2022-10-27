@@ -95,6 +95,8 @@ local defaults = {
             spellFontSize = 13,
         },
         focus = {
+            width = 250,
+            height = 27,
             spellFontSize = 13,
         },
         nameplates = {
@@ -168,7 +170,7 @@ function NugCast:PLAYER_LOGIN()
     end
 
     if self.db.global.focusCastbar and APILevel > 1 then
-        local focus = NugCast:SpawnCastBar("focus", self.db.profile.target.width, self.db.profile.target.height)
+        local focus = NugCast:SpawnCastBar("focus", self.db.profile.focus.width, self.db.profile.focus.height)
         focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
         NugCast:AddMore(focus)
         NugCastFocus = focus
@@ -1074,7 +1076,7 @@ function NugCast:Resize()
         NugCastTarget:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
     end
     if NugCastFocus then
-        NugCastFocus:Resize(NugCast.db.profile.target.width, NugCast.db.profile.target.height)
+        NugCastFocus:Resize(NugCast.db.profile.focus.width, NugCast.db.profile.focus.height)
     end
     for i, timer in ipairs(npCastbars) do
         timer:Resize(NugCast.db.profile.nameplates.width, NugCast.db.profile.nameplates.height)
@@ -1491,6 +1493,46 @@ function NugCast:CreateGUI()
                                 get = function(info) return NugCast.db.profile.target.spellFontSize end,
                                 set = function(info, v)
                                     NugCast.db.profile.target.spellFontSize = tonumber(v)
+                                    NugCast:ResizeText()
+                                end,
+                                min = 5,
+                                max = 50,
+                                step = 1,
+                            },
+
+                            focusWidth = {
+                                name = "Focus Bar Width",
+                                type = "range",
+                                get = function(info) return NugCast.db.profile.focus.width end,
+                                set = function(info, v)
+                                    NugCast.db.profile.focus.width = tonumber(v)
+                                    NugCast:Resize()
+                                end,
+                                min = 30,
+                                max = 1000,
+                                step = 1,
+                                order = 6.1,
+                            },
+                            focusHeight = {
+                                name = "Focus Bar Height",
+                                type = "range",
+                                get = function(info) return NugCast.db.profile.focus.height end,
+                                set = function(info, v)
+                                    NugCast.db.profile.focus.height = tonumber(v)
+                                    NugCast:Resize()
+                                end,
+                                min = 10,
+                                max = 100,
+                                step = 1,
+                                order = 6.2,
+                            },
+                            focusFontSize = {
+                                name = "Focus Font Size",
+                                type = "range",
+                                order = 6.3,
+                                get = function(info) return NugCast.db.profile.focus.spellFontSize end,
+                                set = function(info, v)
+                                    NugCast.db.profile.focus.spellFontSize = tonumber(v)
                                     NugCast:ResizeText()
                                 end,
                                 min = 5,
