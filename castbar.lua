@@ -586,26 +586,66 @@ local GetStageDuration = function(unit, stage, numStages)
         return GetUnitEmpowerStageDuration(unit, stage-1)/1000
     end
 end;
-local function Mark_UpdatePosition(texture, self, time, duration)
+local function Mark_UpdatePosition(self, time, duration)
+    local parent = self:GetParent()
     local progress = time / duration
-    texture:SetHeight(self:GetHeight()*0.9)
-    local parentWidth = self.bar:GetWidth()
-    texture:SetPoint("CENTER", self.bar, "LEFT", progress*parentWidth, 0)
+    self:SetHeight(parent:GetHeight()*0.9)
+    local parentWidth = parent:GetWidth()
+    self:SetPoint("CENTER", parent, "LEFT", progress*parentWidth, 0)
 end
 local function CastBar_CreateMark(self)
-    local texture = self.bar:CreateTexture(nil, "OVERLAY", nil, 5)
-    texture:SetTexture("Interface\\AddOns\\NugCast\\mark")
+    local parent = self.bar
+
+    local m = CreateFrame("Frame",nil, parent)
+    m:SetParent(parent)
+    m:SetWidth(8)
+    m:SetHeight(parent:GetHeight()*0.9)
+    m:SetFrameLevel(4)
+    m:SetAlpha(0.6)
+    m:SetPoint("CENTER", parent, "LEFT",10,0)
+
+    local texture = m:CreateTexture(nil, "OVERLAY")
+    texture:SetTexture("Interface\\AddOns\\NugRunning\\mark")
     texture:SetVertexColor(1,1,1,0.5)
-    -- texture:SetAllPoints(self)
-    texture:SetWidth(8)
-    texture:SetHeight(self:GetHeight()*0.9)
-    -- texture:SetFrameLevel(4)
-    texture:SetAlpha(0.6)
-    texture:SetPoint("CENTER", self.bar, "LEFT", 10,0)
+    texture:SetAllPoints(m)
+    m.texture = texture
 
-    texture.UpdatePosition = Mark_UpdatePosition
+    local spark = parent:CreateTexture(nil, "OVERLAY", nil, 2)
+    spark:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")
+    spark:SetAlpha(0)
+    spark:SetWidth(20)
+    spark:SetHeight(16*4)
+    -- spark:SetPoint("CENTER",m)
+    spark:SetBlendMode('ADD')
+    spark.mark = m
+    spark.CatchUp = function(self)
+        local p1, f, p2, x, y = self.mark:GetPoint()
+        self:SetPoint(p1, f, p2, x, y)
+    end
+    spark:CatchUp()
+    m.spark = spark
 
-    return texture
+    local ag = spark:CreateAnimationGroup()
+    local a1 = ag:CreateAnimation("Alpha")
+    a1:SetFromAlpha(0)
+    a1:SetToAlpha(1)
+    a1:SetDuration(0.2)
+    a1:SetOrder(1)
+    local a2 = ag:CreateAnimation("Alpha")
+    a2:SetFromAlpha(1)
+    a2:SetToAlpha(0)
+    a2:SetDuration(0.4)
+    a2:SetOrder(2)
+
+    ag:SetScript("OnFinished", function(self)
+        self:GetParent():CatchUp()
+    end)
+
+    m.Anim = ag
+
+    m.UpdatePosition = Mark_UpdatePosition
+
+    return m
 end
 local function CastBar_UpdateStageConfig(self, numStages, duration)
     self.stages = self.stages or {}
@@ -623,7 +663,8 @@ local function CastBar_UpdateStageConfig(self, numStages, duration)
         local stageDuration = GetUnitEmpowerStageDuration(unit, i-1)/1000
         stageTime = stageTime + stageDuration
         mark.stageTime = stageTime
-        mark:UpdatePosition(self, stageTime, duration)
+        mark:UpdatePosition(stageTime, duration)
+        mark.spark:CatchUp()
     end
     -- stageTime = stageTime + GetUnitEmpowerHoldAtMaxTime(unit)/1000
 
@@ -661,6 +702,7 @@ local function CastBar_UpdateStageProgress(self, elapsed, duration)
                 local color = NugCast.db.profile.successColor
                 self.bar:SetColor(unpack(color))
             end
+            self.stages[curStage].Anim:Play()
         end
         -- color bar
         -- self.stages[curStage]:AnimPlay
