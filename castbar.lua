@@ -260,12 +260,17 @@ function NugCast.UNIT_SPELLCAST_START(self,event,unit)
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
 end
 NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
+local displayHoldArea = true
 function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID, _, numStages = UnitChannelInfo(unit)
     local isChargeSpell = numStages and numStages > 0;
     if isChargeSpell then
-        endTime = endTime + GetUnitEmpowerHoldAtMaxTime(unit);
+        if displayHoldArea then
+            endTime = endTime + GetUnitEmpowerHoldAtMaxTime(unit);
+        else
+            numStages = numStages - 1
+        end
     end
     if APILevel == 2 then
         -- spellID = notInterruptible
@@ -344,7 +349,7 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         self.endTime = endTime / 1000
         numStages = numStages or 1
         local duration = self.endTime - self.startTime
-        self:UpdateStageConfig(numStages)
+        self:UpdateStageConfig(numStages, duration)
         -- local stageInterval = duration / numStages
         self.bar:SetMinMaxValues(self.startTime, self.endTime)
         self.elapsed = GetTime() - self.startTime
@@ -560,9 +565,15 @@ local MakeBorder = function(self, tex, left, right, top, bottom, level)
     return t
 end
 
-
-local function Mark_UpdatePosition(texture, self, pos, max)
-    local progress = pos/max
+local GetStageDuration = function(unit, stage, numStages)
+    if stage == numStages then
+        return GetUnitEmpowerHoldAtMaxTime(unit)/1000
+    else
+        return GetUnitEmpowerStageDuration(unit, stage-1)/1000
+    end
+end;
+local function Mark_UpdatePosition(texture, self, time, duration)
+    local progress = time / duration
     texture:SetHeight(self:GetHeight()*0.9)
     local parentWidth = self.bar:GetWidth()
     texture:SetPoint("CENTER", self.bar, "LEFT", progress*parentWidth, 0)
@@ -582,26 +593,44 @@ local function CastBar_CreateMark(self)
 
     return texture
 end
-local function CastBar_UpdateStageConfig(self, numStages)
+local function CastBar_UpdateStageConfig(self, numStages, duration)
     self.stages = self.stages or {}
     self.numStages = numStages
     self.curStage = nil
+    local unit = self.unit
 
-    for i=1,numStages-1 do
+    local stageTime = 0
+
+    for i=1,numStages do
+        -- print("showing", i)
         self.stages[i] = self.stages[i] or CastBar_CreateMark(self)
         local mark = self.stages[i]
         mark:Show()
-        mark:UpdatePosition(self, i, numStages)
+        local stageDuration = GetUnitEmpowerStageDuration(unit, i-1)/1000
+        stageTime = stageTime + stageDuration
+        mark.stageTime = stageTime
+        mark:UpdatePosition(self, stageTime, duration)
     end
+    -- stageTime = stageTime + GetUnitEmpowerHoldAtMaxTime(unit)/1000
 
-    for i=numStages,#self.stages do
+    for i=numStages+1,#self.stages do
+        -- print("hiding", i)
         local mark = self.stages[i]
         mark:Hide()
     end
 end
 local math_floor = math.floor
 local function CastBar_UpdateStageProgress(self, elapsed, duration)
-    local curStage = math_floor(elapsed/duration*self.numStages)
+    local curStage = self.curStage or 0
+
+    for i=curStage+1,self.numStages do
+        if self.stages[i].stageTime < elapsed then
+            curStage = i
+        else
+            break
+        end
+    end
+
     if self.curStage ~= curStage then
 
         for i=1,curStage do
@@ -692,7 +721,6 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
 
     f.UpdateStageConfig = CastBar_UpdateStageConfig
     f.UpdateStageProgress = CastBar_UpdateStageProgress
-    f:UpdateStageConfig(5, 10)
 
     return f
 end
