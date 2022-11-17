@@ -362,8 +362,11 @@ local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, n
         self.startTime = startTime / 1000
         self.endTime = endTime / 1000
         numStages = numStages or 1
-        local duration = self.endTime - self.startTime
-        self:UpdateStageConfig(numStages, duration)
+
+        if APILevel >= 10 then
+            local duration = self.endTime - self.startTime
+            self:UpdateStageConfig(numStages, duration)
+        end
         -- local stageInterval = duration / numStages
         self.bar:SetMinMaxValues(self.startTime, self.endTime)
         self.elapsed = GetTime() - self.startTime
