@@ -120,6 +120,13 @@ local defaults = {
         failedColor = { 1, 0, 0 },
         notInterruptibleColorEnabled = false,
         notInterruptibleColor = { 0.5, 0.5, 0.5 },
+
+        empowerStageColors = {
+            { 1, 0.2, 0.3 },
+            { 0.8, 0.4, 0.2 },
+            { 1, 0.75, 0.3 },
+        },
+
         nameplateExcludeTarget = true,
     }
 }
@@ -645,6 +652,16 @@ local function CastBar_UpdateStageProgress(self, elapsed, duration)
             self.stages[i]:Hide()
         end
 
+        -- print(curStage, self.numStages, curStage < self.numStages)
+        if curStage >= 1 then
+            if curStage < self.numStages then
+                local color = NugCast.db.profile.empowerStageColors[curStage]
+                self.bar:SetColor(unpack(color))
+            elseif curStage == self.numStages then
+                local color = NugCast.db.profile.successColor
+                self.bar:SetColor(unpack(color))
+            end
+        end
         -- color bar
         -- self.stages[curStage]:AnimPlay
 
