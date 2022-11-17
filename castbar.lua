@@ -229,6 +229,10 @@ local TimerOnUpdate = function(self, elapsed)
         local val
         if self.channeling then val = self.startTime + remains
         else val = self.endTime - remains end
+
+        local duration = self.endTime - self.startTime
+        self:UpdateStageProgress(v, duration)
+
         self.bar:SetValue(val)
         self.timeText:SetFormattedText("%.1f",remains)
         if remains <= -0.5 then
@@ -272,7 +276,7 @@ function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     local castID = nil
     self.fadingStartTime = nil
     self:SetAlpha(1)
-    self:UpdateCastingInfo(name,texture,startTime,endTime, castID, notInterruptible)
+    self:UpdateCastingInfo(name,texture,startTime,endTime, castID, notInterruptible, numStages)
 end
 NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.UNIT_SPELLCAST_CHANNEL_START
 NugCast.UNIT_SPELLCAST_EMPOWER_START = NugCast.UNIT_SPELLCAST_CHANNEL_START
@@ -333,11 +337,15 @@ function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castID)
 end
 
 
-local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, notInterruptible)
+local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, notInterruptible, numStages)
         if not startTime then return end
         self.castID = castID
         self.startTime = startTime / 1000
         self.endTime = endTime / 1000
+        numStages = numStages or 1
+        local duration = self.endTime - self.startTime
+        self:UpdateStageConfig(numStages)
+        -- local stageInterval = duration / numStages
         self.bar:SetMinMaxValues(self.startTime, self.endTime)
         self.elapsed = GetTime() - self.startTime
         self.icon:SetTexture(texture)
@@ -552,6 +560,62 @@ local MakeBorder = function(self, tex, left, right, top, bottom, level)
     return t
 end
 
+
+local function Mark_UpdatePosition(texture, self, pos, max)
+    local progress = pos/max
+    texture:SetHeight(self:GetHeight()*0.9)
+    local parentWidth = self.bar:GetWidth()
+    texture:SetPoint("CENTER", self.bar, "LEFT", progress*parentWidth, 0)
+end
+local function CastBar_CreateMark(self)
+    local texture = self.bar:CreateTexture(nil, "OVERLAY", nil, 5)
+    texture:SetTexture("Interface\\AddOns\\NugCast\\mark")
+    texture:SetVertexColor(1,1,1,0.5)
+    -- texture:SetAllPoints(self)
+    texture:SetWidth(8)
+    texture:SetHeight(self:GetHeight()*0.9)
+    -- texture:SetFrameLevel(4)
+    texture:SetAlpha(0.6)
+    texture:SetPoint("CENTER", self.bar, "LEFT", 10,0)
+
+    texture.UpdatePosition = Mark_UpdatePosition
+
+    return texture
+end
+local function CastBar_UpdateStageConfig(self, numStages)
+    self.stages = self.stages or {}
+    self.numStages = numStages
+    self.curStage = nil
+
+    for i=1,numStages-1 do
+        self.stages[i] = self.stages[i] or CastBar_CreateMark(self)
+        local mark = self.stages[i]
+        mark:Show()
+        mark:UpdatePosition(self, i, numStages)
+    end
+
+    for i=numStages,#self.stages do
+        local mark = self.stages[i]
+        mark:Hide()
+    end
+end
+local math_floor = math.floor
+local function CastBar_UpdateStageProgress(self, elapsed, duration)
+    local curStage = math_floor(elapsed/duration*self.numStages)
+    if self.curStage ~= curStage then
+
+        for i=1,curStage do
+            -- print(i)
+            self.stages[i]:Hide()
+        end
+
+        -- color bar
+        -- self.stages[curStage]:AnimPlay
+
+        self.curStage = curStage
+    end
+end
+
 NugCast.FillFrame = function(self, f,width,height, unit, spark)
     f:SetWidth(width)
     f:SetHeight(height)
@@ -599,7 +663,7 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
         self.bg:SetVertexColor(r*m,g*m,b*m)
     end
 
-    f.bar.bg = f.bar:CreateTexture(nil, "BORDER")
+    f.bar.bg = f.bar:CreateTexture(nil, "BACKGROUND")
 	f.bar.bg:SetAllPoints(f.bar)
 	f.bar.bg:SetTexture(texture)
 
@@ -625,6 +689,10 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
 
 
     f:SetScript("OnUpdate",TimerOnUpdate)
+
+    f.UpdateStageConfig = CastBar_UpdateStageConfig
+    f.UpdateStageProgress = CastBar_UpdateStageProgress
+    f:UpdateStageConfig(5, 10)
 
     return f
 end
