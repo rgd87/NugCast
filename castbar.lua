@@ -605,7 +605,7 @@ local function CastBar_CreateMark(self)
     m:SetPoint("CENTER", parent, "LEFT",10,0)
 
     local texture = m:CreateTexture(nil, "OVERLAY")
-    texture:SetTexture("Interface\\AddOns\\NugRunning\\mark")
+    texture:SetTexture("Interface\\AddOns\\NugCast\\mark")
     texture:SetVertexColor(1,1,1,0.5)
     texture:SetAllPoints(m)
     m.texture = texture
