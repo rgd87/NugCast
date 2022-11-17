@@ -256,18 +256,25 @@ end
 NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
 function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
-    local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo(unit)
+    local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID, _, numStages = UnitChannelInfo(unit)
+    local isChargeSpell = numStages and numStages > 0;
+    if isChargeSpell then
+        endTime = endTime + GetUnitEmpowerHoldAtMaxTime(unit);
+    end
     if APILevel == 2 then
         -- spellID = notInterruptible
         notInterruptible = false
     end
-    self.channeling = true
+    -- self.channeling = true
+    self.channeling = not isChargeSpell
     local castID = nil
     self.fadingStartTime = nil
     self:SetAlpha(1)
     self:UpdateCastingInfo(name,texture,startTime,endTime, castID, notInterruptible)
 end
 NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.UNIT_SPELLCAST_CHANNEL_START
+NugCast.UNIT_SPELLCAST_EMPOWER_START = NugCast.UNIT_SPELLCAST_CHANNEL_START
+NugCast.UNIT_SPELLCAST_EMPOWER_UPDATE = NugCast.UNIT_SPELLCAST_EMPOWER_START
 
 
 function NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
@@ -289,6 +296,7 @@ function NugCast.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
 end
 NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_FAILED
 NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.UNIT_SPELLCAST_STOP
+NugCast.UNIT_SPELLCAST_EMPOWER_STOP = NugCast.UNIT_SPELLCAST_CHANNEL_STOP
 
 
 function NugCast.UNIT_SPELLCAST_INTERRUPTIBLE(self,event,unit)
@@ -398,6 +406,11 @@ function NugCast.SpawnCastBar(self,unit,width,height)
         f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
         f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
         f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+        if APILevel == 10 then
+            f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_START")
+            f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_UPDATE")
+            f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_STOP")
+        end
     end
     -- These two are only for target and focus
     -- f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
