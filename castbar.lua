@@ -12,6 +12,9 @@ if APILevel == 1 then
     UnitChannelInfo = ChannelInfo
 end
 
+local GetUnitEmpowerStageDuration = GetUnitEmpowerStageDuration
+local GetUnitEmpowerHoldAtMaxTime = GetUnitEmpowerHoldAtMaxTime
+
 local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
@@ -230,8 +233,10 @@ local TimerOnUpdate = function(self, elapsed)
         if self.channeling then val = self.startTime + remains
         else val = self.endTime - remains end
 
-        local duration = self.endTime - self.startTime
-        self:UpdateStageProgress(v, duration)
+        if self.empowered then
+            local duration = self.endTime - self.startTime
+            self:UpdateStageProgress(v, duration)
+        end
 
         self.bar:SetValue(val)
         self.timeText:SetFormattedText("%.1f",remains)
@@ -255,6 +260,7 @@ function NugCast.UNIT_SPELLCAST_START(self,event,unit)
         notInterruptible = false
     end
     self.channeling = false
+    self.empowered = false
     self.fadingStartTime = nil
     self:SetAlpha(1)
     self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
@@ -278,6 +284,7 @@ function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     end
     -- self.channeling = true
     self.channeling = not isChargeSpell
+    self.empowered = isChargeSpell
     local castID = nil
     self.fadingStartTime = nil
     self:SetAlpha(1)

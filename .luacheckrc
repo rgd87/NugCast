@@ -159,4 +159,6 @@ globals = {
     "NugCastFocus",
     "NugCastPlayerNameplateHeader",
 
+    "GetUnitEmpowerStageDuration",
+    "GetUnitEmpowerHoldAtMaxTime",
 }
