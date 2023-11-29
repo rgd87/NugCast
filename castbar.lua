@@ -7,10 +7,10 @@ local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
 local APILevel = math.floor(select(4,GetBuildInfo())/10000)
 local isClassic = APILevel <= 2
-if APILevel == 1 then
-    UnitCastingInfo = CastingInfo
-    UnitChannelInfo = ChannelInfo
-end
+-- if APILevel == 1 then
+--     UnitCastingInfo = CastingInfo
+--     UnitChannelInfo = ChannelInfo
+-- end
 
 local GetUnitEmpowerStageDuration = GetUnitEmpowerStageDuration
 local GetUnitEmpowerHoldAtMaxTime = GetUnitEmpowerHoldAtMaxTime
@@ -18,7 +18,7 @@ local GetUnitEmpowerHoldAtMaxTime = GetUnitEmpowerHoldAtMaxTime
 local NugCastDB
 
 local LSM = LibStub("LibSharedMedia-3.0")
-local LibCC = APILevel == 1 and LibStub("LibClassicCasterino", true)
+local LibCC -- = APILevel == 1 and LibStub("LibClassicCasterino", true)
 
 LSM:Register("statusbar", "Aluminium", [[Interface\AddOns\NugCast\statusbar.tga]])
 
