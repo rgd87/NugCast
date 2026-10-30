@@ -158,8 +158,9 @@ function NugCast:PLAYER_LOGIN()
             player.spellText:Hide()
             player.timeText:Hide()
         end
-        if CastingBarFrame then
-            CastingBarFrame:UnregisterAllEvents()
+        if PlayerCastingBarFrame then
+            PlayerCastingBarFrame:UnregisterAllEvents()
+            PlayerCastingBarFrame:Hide()
         end
         NugCastPlayer = player
 
@@ -179,7 +180,7 @@ function NugCast:PLAYER_LOGIN()
         anchors["target"] = target_anchor
     end
 
-    if self.db.global.focusCastbar and APILevel > 1 then
+    if self.db.global.focusCastbar then
         local focus = NugCast:SpawnCastBar("focus", self.db.profile.focus.width, self.db.profile.focus.height)
         focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
         NugCast:AddMore(focus)
@@ -193,6 +194,7 @@ function NugCast:PLAYER_LOGIN()
     -- else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
 
 
+    --[[
     if self.db.global.nameplateCastbars and not isClassic then
         local npheader = NugCast:CreateNameplateCastbars()
         NugCastPlayerNameplateHeader = npheader
@@ -201,6 +203,7 @@ function NugCast:PLAYER_LOGIN()
         -- npheader:SetPoint("CENTER", UIParent, "CENTER",0,0)
         anchors["nameplates"] = nameplates_anchor
     end
+    ]]
 
 
     SLASH_NUGCAST1= "/nugcast"
@@ -211,7 +214,9 @@ function NugCast:PLAYER_LOGIN()
         self:SetScript('OnShow', nil)
 
         if not NugCast.optionsPanel then
-            NugCast.optionsPanel = NugCast:CreateGUI()
+            local panelFrame, categoryID = NugCast:CreateGUI()
+            NugCast.optionsPanel = panelFrame
+            NugCast.settingsCategoryID = categoryID
         end
     end)
 end
@@ -1138,10 +1143,13 @@ end
 NugCast.Commands = {
     ["gui"] = function()
         if not NugCast.optionsPanel then
-            NugCast.optionsPanel = NugCast:CreateGUI()
+            local panelFrame, categoryID = NugCast:CreateGUI()
+            NugCast.optionsPanel = panelFrame
+            NugCast.settingsCategoryID = categoryID
         end
-        InterfaceOptionsFrame_OpenToCategory("NugCast")
-        InterfaceOptionsFrame_OpenToCategory("NugCast")
+        if NugCast.optionsPanel and not InCombatLockdown() then
+            Settings.OpenToCategory(NugCast.settingsCategoryID)
+        end
     end,
     ["unlock"] = function()
         for unit, anchor in pairs(anchors) do
@@ -1844,9 +1852,9 @@ function NugCast:CreateGUI()
     AceConfigRegistry:RegisterOptionsTable("NugCastOptions", opt)
 
     local AceConfigDialog = LibStub("AceConfigDialog-3.0")
-    local panelFrame = AceConfigDialog:AddToBlizOptions("NugCastOptions", "NugCast")
+    local panelFrame, categoryID = AceConfigDialog:AddToBlizOptions("NugCastOptions", "NugCast")
 
-    return panelFrame
+    return panelFrame, categoryID
 end
 
 
