@@ -254,9 +254,9 @@ local defaultChannelColor = {200/255,50/255,95/255 }
 local highlightColor = { 206/255, 4/256, 56/256 }
 local coloredSpells = {}
 
-function NugCast.UNIT_SPELLCAST_START(self,event,unit)
+function NugCast.CAST_START(self,event, unit)
     if unit ~= self.unit then return end
-    local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible, spellID = UnitCastingInfo(unit)
+    local name, displayName, textureID, startTime, endTime, isTradeskill, castGUID, notInterruptible, castingSpellID, castID, delayTimeMs = UnitCastingInfo(unit)
     local duration = UnitCastingDuration(unit)
     if isClassic and APILevel == 2 then
         -- spellID = notInterruptible
@@ -269,13 +269,17 @@ function NugCast.UNIT_SPELLCAST_START(self,event,unit)
     end
     self:Show()
     self:SetAlpha(1)
-    self:UpdateCastingInfo(name,texture,startTime,duration,castID, notInterruptible)
+    self:UpdateCastingInfo(name, textureID, startTime, duration, castID, notInterruptible)
 end
-NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
+NugCast.UNIT_SPELLCAST_START = NugCast.CAST_START
+NugCast.UNIT_SPELLCAST_DELAYED = NugCast.CAST_START
+
+
+
 local displayHoldArea = true
-function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
+function NugCast.CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
-    local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID, isEmpowered, numStages = UnitChannelInfo(unit)
+    local name, displayName, textureID, startTime, endTime, isTradeskill, notInterruptible, spellID, isEmpowered, numStages, castID = UnitChannelInfo(unit)
     local duration
     if isEmpowered then
         duration = UnitEmpoweredChannelDuration(unit, displayHoldArea)
@@ -293,49 +297,84 @@ function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     -- self.channeling = true
     self.channeling = not isEmpowered
     self.empowered = isEmpowered
-    local castID = nil
     if self.fader:IsPlaying() then
         self.fader:Stop()
     end
     self:Show()
     self:SetAlpha(1)
-    self:UpdateCastingInfo(name,texture,startTime,duration, castID, notInterruptible, isEmpowered, numStages)
+    self:UpdateCastingInfo(name, textureID, startTime, duration, castID, notInterruptible, isEmpowered, numStages)
 end
-NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.UNIT_SPELLCAST_CHANNEL_START
-NugCast.UNIT_SPELLCAST_EMPOWER_START = NugCast.UNIT_SPELLCAST_CHANNEL_START
-NugCast.UNIT_SPELLCAST_EMPOWER_UPDATE = NugCast.UNIT_SPELLCAST_EMPOWER_START
+NugCast.UNIT_SPELLCAST_CHANNEL_START = NugCast.CHANNEL_START
+NugCast.UNIT_SPELLCAST_EMPOWER_START = NugCast.CHANNEL_START
+NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.CHANNEL_START
+NugCast.UNIT_SPELLCAST_EMPOWER_UPDATE = NugCast.CHANNEL_START
 
 
-function NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
+function NugCast.CAST_STOP(self, event, unit, castGUID, spellID, ...)
     if unit ~= self.unit then return end
+    --[[
     if self.Deactivate then
         self:Deactivate()
         self:Hide()
         return
     end
+    ]]
+
+    local castID, interruptedBy, empowerComplete
+	if(event == 'UNIT_SPELLCAST_STOP') then
+		castID = ...
+	elseif(event == 'UNIT_SPELLCAST_EMPOWER_STOP') then
+		empowerComplete, interruptedBy, castID = ...
+        if interruptedBy then
+            self.bar:SetColor(unpack(NugCast.db.profile.failedColor))
+        end
+        if empowerComplete then
+            self.bar:SetColor(unpack(NugCast.db.profile.successColor))
+        end
+	elseif(event == 'UNIT_SPELLCAST_CHANNEL_STOP') then
+		interruptedBy, castID = ...
+	end
+
+    if self.castID ~= castID then return end
+
     self.bar:SetMinMaxValues(0,1)
     self.bar:SetValue(self.channeling and 0 or 1)
     self.fader:Play()
     -- self:Hide()
 end
-function NugCast.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
+NugCast.UNIT_SPELLCAST_STOP = NugCast.CAST_STOP
+NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.CAST_STOP
+NugCast.UNIT_SPELLCAST_EMPOWER_STOP = NugCast.CAST_STOP
+
+
+
+function NugCast.CAST_FAILED(self, event, unit, _, spellID, ...)
     if unit ~= self.unit then return end
-    -- if self.castID == castID then
-        NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
-        self.bar:SetColor(unpack(NugCast.db.profile.failedColor))
-    -- end
+
+    local castID, interruptedBy
+	if(event == 'UNIT_SPELLCAST_INTERRUPTED') then
+		interruptedBy, castID = ...
+	elseif(event == 'UNIT_SPELLCAST_FAILED') then
+		castID = ...
+	end
+
+    if self.castID ~= castID then return end
+
+    NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
+    self.bar:SetColor(unpack(NugCast.db.profile.failedColor))
 end
-NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_FAILED
-NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.UNIT_SPELLCAST_STOP
+NugCast.UNIT_SPELLCAST_FAILED = NugCast.CAST_FAILED
+NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.CAST_FAILED
+
 
 
 function NugCast.UNIT_SPELLCAST_INTERRUPTIBLE(self,event,unit)
     if unit ~= self.unit then return end
-    self.shield:Hide()
+    self.shield:SetAlpha(0)
 end
 function NugCast.UNIT_SPELLCAST_NOT_INTERRUPTIBLE(self,event,unit)
     if unit ~= self.unit then return end
-    self.shield:Show()
+    self.shield:SetAlpha(1)
 end
 
 
@@ -351,19 +390,19 @@ function NugCast.PLAYER_FOCUS_CHANGED(self,event)
     NugCast.UNIT_SPELLCAST_STOP(self,event,"focus")
 end
 
-function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castID)
+function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castGUID, spellID, castID)
     if unit ~= self.unit then return end
     if self.channeling then return end
-    -- if self.castID == castID then
+    if self.empowered then return end
+    if self.castID == castID then
         NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
         self.bar:SetColor(unpack(NugCast.db.profile.successColor))
-    -- end
+    end
 end
-NugCast.UNIT_SPELLCAST_EMPOWER_STOP = NugCast.UNIT_SPELLCAST_SUCCEEDED
 
 local UpdateCastingInfo = function(self,name,texture,startTime,duration,castID, notInterruptible, isEmpowered, numStages)
         if not startTime then return end
-        self.castID = castID
+        self.castID = castID -- this is castBarID, not castGUID, it shouldn't be secret
         self.startTime = startTime
         self.duration = duration
         numStages = numStages or 1
