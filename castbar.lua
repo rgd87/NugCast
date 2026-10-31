@@ -6,11 +6,10 @@ local NugCast = _G.NugCast
 local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
 local APILevel = math.floor(select(4,GetBuildInfo())/10000)
-local isClassic = APILevel <= 2
--- if APILevel == 1 then
---     UnitCastingInfo = CastingInfo
---     UnitChannelInfo = ChannelInfo
--- end
+local isForever = WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+local isClassic = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
+local isMainline = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+
 
 local GetUnitEmpowerStageDuration = GetUnitEmpowerStageDuration
 local GetUnitEmpowerHoldAtMaxTime = GetUnitEmpowerHoldAtMaxTime
@@ -131,6 +130,18 @@ local defaults = {
     }
 }
 
+local GetNearestPixelSize = PixelUtil.GetNearestPixelSize
+local ppScaleRegion = UIParent
+local function SetPixelPerfectScaleRegion(region)
+    ppScaleRegion = region
+end
+local function pixelperfect(size, region)
+    region = region or ppScaleRegion
+    return GetNearestPixelSize(size, region:GetEffectiveScale())
+end
+
+
+
 
 NugCast:RegisterEvent("PLAYER_LOGIN")
 NugCast:SetScript("OnEvent", function(self, event, ...)
@@ -147,10 +158,10 @@ function NugCast:PLAYER_LOGIN()
     self.db.RegisterCallback(self, "OnProfileCopied", "Reconfigure")
     self.db.RegisterCallback(self, "OnProfileReset", "Reconfigure")
 
-    if APILevel == 1 then
+    -- if APILevel == 1 then
         self.db.global.focusCastbar = false
         self.db.global.nameplateCastbars = false
-    end
+    -- end
 
     if self.db.global.playerCastbar then
         local player = NugCast:SpawnCastBar("player", self.db.profile.player.width, self.db.profile.player.height)
@@ -227,37 +238,6 @@ function NugCast:Reconfigure()
     self:ResizeText()
 end
 
-local TimerOnUpdate = function(self, elapsed)
-    local v = self.elapsed + elapsed
-    local remains = self.endTime - (v+self.startTime)
-    self.elapsed = v
-
-    if self.fadingStartTime then
-        local t = GetTime() - self.fadingStartTime
-        local a = 4* math.max(0, 0.25 - t)
-        self:SetAlpha(a)
-        self.bar:SetValue(self.endTime)
-        if a < 0 then
-            self:Hide()
-        end
-    else
-        local val
-        if self.channeling then val = self.startTime + remains
-        else val = self.endTime - remains end
-
-        if self.empowered then
-            local duration = self.endTime - self.startTime
-            self:UpdateStageProgress(v, duration)
-        end
-
-        self.bar:SetValue(val)
-        self.timeText:SetFormattedText("%.1f",remains)
-        if remains <= -0.5 then
-            if self.Deactivate then self:Deactivate() end
-            self:Hide()
-        end
-    end
-end
 
 local defaultCastColor = { 0.6, 0, 1 }
 local defaultChannelColor = {200/255,50/255,95/255 }
@@ -267,40 +247,49 @@ local coloredSpells = {}
 function NugCast.UNIT_SPELLCAST_START(self,event,unit)
     if unit ~= self.unit then return end
     local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible, spellID = UnitCastingInfo(unit)
-    if APILevel == 2 then
+    local duration = UnitCastingDuration(unit)
+    if isClassic and APILevel == 2 then
         -- spellID = notInterruptible
         notInterruptible = false
     end
     self.channeling = false
     self.empowered = false
-    self.fadingStartTime = nil
+    if self.fader:IsPlaying() then
+        self.fader:Stop()
+    end
+    self:Show()
     self:SetAlpha(1)
-    self:UpdateCastingInfo(name,texture,startTime,endTime,castID, notInterruptible)
+    self:UpdateCastingInfo(name,texture,startTime,duration,castID, notInterruptible)
 end
 NugCast.UNIT_SPELLCAST_DELAYED = NugCast.UNIT_SPELLCAST_START
 local displayHoldArea = true
 function NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,unit)
     if unit ~= self.unit then return end
-    local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID, _, numStages = UnitChannelInfo(unit)
-    local isChargeSpell = numStages and numStages > 0;
-    if isChargeSpell then
-        if displayHoldArea then
-            endTime = endTime + GetUnitEmpowerHoldAtMaxTime(unit);
-        else
+    local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID, isEmpowered, numStages = UnitChannelInfo(unit)
+    local duration
+    if isEmpowered then
+        duration = UnitEmpoweredChannelDuration(unit, displayHoldArea)
+        if not displayHoldArea then
             numStages = numStages - 1
         end
+    else
+        duration = UnitChannelDuration(unit)
     end
-    if APILevel == 2 then
+
+    if isClassic and APILevel == 2 then
         -- spellID = notInterruptible
         notInterruptible = false
     end
     -- self.channeling = true
-    self.channeling = not isChargeSpell
-    self.empowered = isChargeSpell
+    self.channeling = not isEmpowered
+    self.empowered = isEmpowered
     local castID = nil
-    self.fadingStartTime = nil
+    if self.fader:IsPlaying() then
+        self.fader:Stop()
+    end
+    self:Show()
     self:SetAlpha(1)
-    self:UpdateCastingInfo(name,texture,startTime,endTime, castID, notInterruptible, numStages)
+    self:UpdateCastingInfo(name,texture,startTime,duration, castID, notInterruptible, isEmpowered, numStages)
 end
 NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.UNIT_SPELLCAST_CHANNEL_START
 NugCast.UNIT_SPELLCAST_EMPOWER_START = NugCast.UNIT_SPELLCAST_CHANNEL_START
@@ -314,19 +303,20 @@ function NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
         self:Hide()
         return
     end
-    self.fadingStartTime = self.fadingStartTime or GetTime()
+    self.bar:SetMinMaxValues(0,1)
+    self.bar:SetValue(self.channeling and 0 or 1)
+    self.fader:Play()
     -- self:Hide()
 end
 function NugCast.UNIT_SPELLCAST_FAILED(self, event, unit, castID)
     if unit ~= self.unit then return end
-    if self.castID == castID then
+    -- if self.castID == castID then
         NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
         self.bar:SetColor(unpack(NugCast.db.profile.failedColor))
-    end
+    -- end
 end
 NugCast.UNIT_SPELLCAST_INTERRUPTED = NugCast.UNIT_SPELLCAST_FAILED
 NugCast.UNIT_SPELLCAST_CHANNEL_STOP = NugCast.UNIT_SPELLCAST_STOP
-NugCast.UNIT_SPELLCAST_EMPOWER_STOP = NugCast.UNIT_SPELLCAST_CHANNEL_STOP
 
 
 function NugCast.UNIT_SPELLCAST_INTERRUPTIBLE(self,event,unit)
@@ -354,47 +344,44 @@ end
 function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castID)
     if unit ~= self.unit then return end
     if self.channeling then return end
-    if self.castID == castID then
+    -- if self.castID == castID then
         NugCast.UNIT_SPELLCAST_STOP(self, event, unit, castID)
         self.bar:SetColor(unpack(NugCast.db.profile.successColor))
-    end
+    -- end
 end
+NugCast.UNIT_SPELLCAST_EMPOWER_STOP = NugCast.UNIT_SPELLCAST_SUCCEEDED
 
-
-local UpdateCastingInfo = function(self,name,texture,startTime,endTime,castID, notInterruptible, numStages)
+local UpdateCastingInfo = function(self,name,texture,startTime,duration,castID, notInterruptible, isEmpowered, numStages)
         if not startTime then return end
         self.castID = castID
-        self.startTime = startTime / 1000
-        self.endTime = endTime / 1000
+        self.startTime = startTime
+        self.duration = duration
         numStages = numStages or 1
 
-        if APILevel >= 10 then
-            local duration = self.endTime - self.startTime
-            self:UpdateStageConfig(numStages, duration)
+        local direction = self.channeling and 1 or 0
+        self.bar:SetTimerDuration(duration, nil, direction)
+
+        if isEmpowered then
+            self:UpdateStageConfig(numStages)
+        else
+            self:HideMarksFrom(0)
         end
         -- local stageInterval = duration / numStages
-        self.bar:SetMinMaxValues(self.startTime, self.endTime)
-        self.elapsed = GetTime() - self.startTime
+        -- self.bar:SetMinMaxValues(self.startTime, self.endTime)
         self.icon:SetTexture(texture)
         self.spellText:SetText(name)
         -- if self.unit ~= "player" and NugCast.badSpells[name] then
         --     if self.shine:IsPlaying() then self.shine:Stop() end
         --     self.shine:Play()
         -- end
-        local color = coloredSpells[name] or (self.channeling and NugCast.db.profile.channelColor or NugCast.db.profile.castColor)
+        local color = self.channeling and NugCast.db.profile.channelColor or NugCast.db.profile.castColor
         self.bar:SetColor(unpack(color))
         self.isActive = true
         self:Show()
 
         if self.shield then
-            if notInterruptible then
-                self.shield:Show()
-                if NugCast.db.profile.notInterruptibleColorEnabled then
-                    self.bar:SetColor(unpack(NugCast.db.profile.notInterruptibleColor))
-                end
-            else
-                self.shield:Hide()
-            end
+            self.shield:Show()
+            self.shield:SetAlphaFromBoolean(notInterruptible, 1, 0)
         end
     end
 function NugCast.SpawnCastBar(self,unit,width,height)
@@ -413,42 +400,19 @@ function NugCast.SpawnCastBar(self,unit,width,height)
     -- end
 
     f:Hide()
-    if LibCC then
-        local CastbarEventHandler = function(event, ...)
-            local self = f
-            return NugCast[event](self, event, ...)
-        end
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_START", CastbarEventHandler)
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_DELAYED", CastbarEventHandler) -- only for player
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_STOP", CastbarEventHandler)
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_FAILED", CastbarEventHandler)
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_INTERRUPTED", CastbarEventHandler)
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_SUCCEEDED", CastbarEventHandler)
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_START", CastbarEventHandler)
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_UPDATE", CastbarEventHandler) -- only for player
-        LibCC.RegisterCallback(f,"UNIT_SPELLCAST_CHANNEL_STOP", CastbarEventHandler)
-        UnitCastingInfo = function(unit)
-            return LibCC:UnitCastingInfo(unit)
-        end
-        UnitChannelInfo = function(unit)
-            return LibCC:UnitChannelInfo(unit)
-        end
-    else
-        f:RegisterEvent("UNIT_SPELLCAST_START")
-        f:RegisterEvent("UNIT_SPELLCAST_DELAYED")
-        f:RegisterEvent("UNIT_SPELLCAST_STOP")
-        f:RegisterEvent("UNIT_SPELLCAST_FAILED")
-        f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-        f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
-        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
-        f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
-        if APILevel == 10 then
-            f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_START")
-            f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_UPDATE")
-            f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_STOP")
-        end
-    end
+    f:RegisterEvent("UNIT_SPELLCAST_START")
+    f:RegisterEvent("UNIT_SPELLCAST_DELAYED")
+    f:RegisterEvent("UNIT_SPELLCAST_STOP")
+    f:RegisterEvent("UNIT_SPELLCAST_FAILED")
+    f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+    f:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
+    f:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+
+    f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_START")
+    f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_UPDATE")
+    f:RegisterEvent("UNIT_SPELLCAST_EMPOWER_STOP")
     -- These two are only for target and focus
     -- f:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
     -- f:RegisterEvent("UNIT_SPELLCAST_NOT_INTERRUPTIBLE")
@@ -458,55 +422,6 @@ function NugCast.SpawnCastBar(self,unit,width,height)
     f.UpdateCastingInfo = UpdateCastingInfo
 
     return f
-end
-
-local OnValueChanged = function(self, v)
-    local min, max = self:GetMinMaxValues()
-    local total = max-min
-    local p
-    if total == 0 then
-        p = 0
-    else
-        p = (v-min)/(max-min)
-    end
-    local len = p*self:GetWidth()
-    -- OriginalSetValue(self, v)
-    self.spark:SetPoint("CENTER", self, "LEFT", len, 0)
-end
-
-NugCast.AddSpark = function(self, bar)
-    -- local bar = f.bar
-
-    local spark = bar:CreateTexture(nil, "ARTWORK", nil, 4)
-    spark:SetBlendMode("ADD")
-    spark:SetTexture([[Interface\AddOns\NugCast\spark.tga]])
-    spark:SetSize(bar:GetHeight()*2, bar:GetHeight())
-
-    -- spark:SetPoint("CENTER", bar, "LEFT",0,0)
-    -- spark:SetVertexColor(unpack(colors.health))
-    bar.spark = spark
-
-    -- bar:SetScript("OnValueChanged", OnValueChanged)
-    local OriginalSetValue = bar.SetValue
-    bar.SetValue = function(self, v)
-        local min, max = self:GetMinMaxValues()
-        local total = max-min
-        local p
-        if total == 0 then
-            p = 0
-        else
-            p = (v-min)/(max-min)
-        end
-        local len = p*self:GetWidth()
-        OriginalSetValue(self, v)
-        self.spark:SetPoint("CENTER", self, "LEFT", len, 0)
-    end
-
-    local OriginalSetStatusBarColor = bar.SetStatusBarColor
-    bar.SetStatusBarColor = function(self, r,g,b,a)
-        self.spark:SetVertexColor(r,g,b,a)
-        return OriginalSetStatusBarColor(self, r,g,b,a)
-    end
 end
 
 NugCast.AddMore = function(self, f)
@@ -587,16 +502,8 @@ local MakeBorder = function(self, tex, left, right, top, bottom, level)
     return t
 end
 
-local GetStageDuration = function(unit, stage, numStages)
-    if stage == numStages then
-        return GetUnitEmpowerHoldAtMaxTime(unit)/1000
-    else
-        return GetUnitEmpowerStageDuration(unit, stage-1)/1000
-    end
-end;
-local function Mark_UpdatePosition(self, time, duration)
+local function Mark_UpdatePosition(self, progress)
     local parent = self:GetParent()
-    local progress = time / duration
     self:SetHeight(parent:GetHeight()*0.9)
     local parentWidth = parent:GetWidth()
     self:SetPoint("CENTER", parent, "LEFT", progress*parentWidth, 0)
@@ -604,19 +511,22 @@ end
 local function CastBar_CreateMark(self)
     local parent = self.bar
 
-    local m = CreateFrame("Frame",nil, parent)
-    m:SetParent(parent)
-    m:SetWidth(8)
-    m:SetHeight(parent:GetHeight()*0.9)
-    m:SetFrameLevel(4)
-    m:SetAlpha(0.6)
-    m:SetPoint("CENTER", parent, "LEFT",10,0)
+    -- local m = CreateFrame("Frame",nil, parent)
+    -- m:SetWidth(8)
+    -- m:SetHeight(parent:GetHeight()*0.9)
+    -- m:SetFrameLevel(4)
+    -- m:SetAlpha(0.6)
+    -- m:SetPoint("CENTER", parent, "LEFT",10,0)
 
-    local texture = m:CreateTexture(nil, "OVERLAY")
-    texture:SetTexture("Interface\\AddOns\\NugCast\\mark")
-    texture:SetVertexColor(1,1,1,0.5)
-    texture:SetAllPoints(m)
-    m.texture = texture
+    local white = "Interface\\BUTTONS\\WHITE8X8"
+    local markTexPath = "Interface\\AddOns\\NugCast\\mark"
+    local texture = parent:CreateTexture(nil, "OVERLAY")
+    texture:SetTexture(white)
+    texture:SetWidth(pixelperfect(2, parent))
+    texture:SetVertexColor(1,1,1,0.3)
+    -- m.texture = texture
+
+    --[[
 
     local spark = parent:CreateTexture(nil, "OVERLAY", nil, 2)
     spark:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")
@@ -653,71 +563,55 @@ local function CastBar_CreateMark(self)
 
     m.UpdatePosition = Mark_UpdatePosition
 
+
     return m
+    ]]
+    texture.UpdatePosition = Mark_UpdatePosition
+    return texture
 end
-local function CastBar_UpdateStageConfig(self, numStages, duration)
-    self.stages = self.stages or {}
-    self.numStages = numStages
-    self.curStage = nil
-    local unit = self.unit
 
-    local stageTime = 0
-
-    for i=1,numStages do
-        -- print("showing", i)
-        self.stages[i] = self.stages[i] or CastBar_CreateMark(self)
-        local mark = self.stages[i]
-        mark:Show()
-        local stageDuration = GetUnitEmpowerStageDuration(unit, i-1)/1000
-        stageTime = stageTime + stageDuration
-        mark.stageTime = stageTime
-        mark:UpdatePosition(stageTime, duration)
-        mark.spark:CatchUp()
-    end
-    -- stageTime = stageTime + GetUnitEmpowerHoldAtMaxTime(unit)/1000
-
+local function CastBar_HideMarksFrom(self, numStages)
+    if not self.stages then return end
     for i=numStages+1,#self.stages do
         -- print("hiding", i)
         local mark = self.stages[i]
         mark:Hide()
     end
 end
-local math_floor = math.floor
-local function CastBar_UpdateStageProgress(self, elapsed, duration)
-    local curStage = self.curStage or 0
+local function CastBar_UpdateStageConfig(self, numStages)
+    self.stages = self.stages or {}
+    self.numStages = numStages
+    self.curStage = nil
+    local unit = self.unit
+    local percentages = UnitEmpoweredStagePercentages(self.unit, displayHoldArea)
 
-    for i=curStage+1,self.numStages do
-        if self.stages[i].stageTime < elapsed then
-            curStage = i
-        else
-            break
-        end
+    local stageTime = 0
+
+
+    local lastOffset = 0
+    local lastMarkPerc = 0
+    for i=1,numStages do
+        -- print("showing", i)
+        self.stages[i] = self.stages[i] or CastBar_CreateMark(self)
+        local mark = self.stages[i]
+        mark:Show()
+
+        local stageSection = percentages[i]
+        -- local offset = lastOffset + (parentSize * stageSection)
+		-- lastOffset = offset
+
+        local markPerc = lastMarkPerc + stageSection
+        lastMarkPerc = markPerc
+
+        -- local stageDuration = GetUnitEmpowerStageDuration(unit, i-1)/1000
+        -- stageTime = stageTime + stageDuration
+        -- mark.stageTime = stageTime
+        mark:UpdatePosition(markPerc)
     end
 
-    if self.curStage ~= curStage then
-
-        for i=1,curStage do
-            -- print(i)
-            self.stages[i]:Hide()
-        end
-
-        -- print(curStage, self.numStages, curStage < self.numStages)
-        if curStage >= 1 then
-            if curStage < self.numStages then
-                local color = NugCast.db.profile.empowerStageColors[curStage]
-                self.bar:SetColor(unpack(color))
-            elseif curStage == self.numStages then
-                local color = NugCast.db.profile.successColor
-                self.bar:SetColor(unpack(color))
-            end
-            self.stages[curStage].Anim:Play()
-        end
-        -- color bar
-        -- self.stages[curStage]:AnimPlay
-
-        self.curStage = curStage
-    end
+    self:HideMarksFrom(numStages)
 end
+local math_floor = math.floor
 
 NugCast.FillFrame = function(self, f,width,height, unit, spark)
     f:SetWidth(width)
@@ -738,22 +632,26 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
 
     local texture = LSM:Fetch("statusbar", NugCast.db.profile.barTexture)
 
-    if not spark then
-        f.bar = CreateFrame("StatusBar",nil,f)
-    else
-        -- no matter what StatusBar value is never synced with Spark on fast casts, as if delayed by a single frame
-        -- so i'm making my own status bar with texcoord
-        f.bar = self:CreateHorizontalBar(nil,f)
-    end
-    f.bar:SetFrameStrata("MEDIUM")
-    f.bar:SetStatusBarTexture(texture)
-    f.bar:SetHeight(height)
-    f.bar:SetWidth(width - height - 1)
-    f.bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
+    local bar = CreateFrame("StatusBar",nil,f)
+    f.bar = bar
+
+    bar:SetFrameStrata("MEDIUM")
+    bar:SetStatusBarTexture(texture)
+    bar:SetHeight(height)
+    bar:SetWidth(width - height - 1)
+    bar:SetPoint("TOPRIGHT",f,"TOPRIGHT",0,0)
+
 
     if spark then
-        self:AddSpark(f.bar)
+    -- if true then
+        local spark = bar:CreateTexture(nil, "ARTWORK", nil, 4)
+        spark:SetBlendMode("ADD")
+        spark:SetTexture("Interface\\AddOns\\NugCast\\spark.tga")
+        spark:SetSize(bar:GetHeight()*2, bar:GetHeight())
+        spark:SetPoint("CENTER", bar:GetStatusBarTexture(), "RIGHT", 0,0)
+        bar.spark = spark
     end
+
 
     f.Resize = ResizeFunc
 
@@ -764,6 +662,9 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
     f.bar.SetColor = function(self, r,g,b)
         self:SetStatusBarColor(r,g,b)
         self.bg:SetVertexColor(r*m,g*m,b*m)
+        if self.spark then
+            self.spark:SetVertexColor(r,g,b)
+        end
     end
 
     f.bar.bg = f.bar:CreateTexture(nil, "BACKGROUND")
@@ -790,11 +691,21 @@ NugCast.FillFrame = function(self, f,width,height, unit, spark)
     f.spellText:SetPoint("LEFT", f.bar, "LEFT",6,0)
     -- f.spellText:SetAlpha(0.5)
 
+    local faderGroup = f:CreateAnimationGroup()
 
-    f:SetScript("OnUpdate",TimerOnUpdate)
+    local fadeAnim = faderGroup:CreateAnimation("Alpha")
+    fadeAnim:SetFromAlpha(1)
+    fadeAnim:SetToAlpha(0)
+    fadeAnim:SetDuration(0.5)
+    faderGroup:SetScript("OnFinished", function(self)
+        local parent = self:GetParent()
+        parent:Hide()
+    end)
+    f.fader = faderGroup
+
 
     f.UpdateStageConfig = CastBar_UpdateStageConfig
-    f.UpdateStageProgress = CastBar_UpdateStageProgress
+    f.HideMarksFrom = CastBar_HideMarksFrom
 
     return f
 end
@@ -896,8 +807,6 @@ NugCast.MakeDoubleCastbar = function(self, f,width,height)
     f.spellText:SetPoint("LEFT", f.bar, "LEFT",6,0)
     f.spellText:SetAlpha(0.5)
 
-
-    f:SetScript("OnUpdate",TimerOnUpdate)
 
     return f
 end
@@ -1155,14 +1064,19 @@ NugCast.Commands = {
         for unit, anchor in pairs(anchors) do
             anchor:Show()
         end
-        local now = GetTime() * 1000
-        NugCastPlayer:UpdateCastingInfo("Player","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+        local duration = C_DurationUtil.CreateDuration()
+
+        local now = GetTime()
+        duration:SetTimeFromStart(now, 20)
+
+        NugCastPlayer:UpdateCastingInfo("Player","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
         if NugCastTarget then
-            NugCastTarget:UpdateCastingInfo("Target","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+            NugCastTarget:UpdateCastingInfo("Target","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
         end
         if NugCastFocus then
-            NugCastFocus:UpdateCastingInfo("Focus","Interface\\Icons\\inv_misc_questionmark",now - 150000, now + 150000, 1, true)
+            NugCastFocus:UpdateCastingInfo("Focus","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
         end
+        --[[
         for i=1, 3 do
             local castbar = NugCast.FindFreeCastbar()
             if not castbar then break end
@@ -1172,6 +1086,7 @@ NugCast.Commands = {
         if NugCastPlayerNameplateHeader then
             NugCastPlayerNameplateHeader:Arrange()
         end
+        ]]
     end,
     ["lock"] = function()
         for unit, anchor in pairs(anchors) do

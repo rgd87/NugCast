@@ -1,5 +1,6 @@
 ## Interface: 120105
 ## Title: NugCast
+## IconTexture: 135913
 ## Author: d87
 ## Notes: Castbar addon
 ## SavedVariables: NugCastDB
