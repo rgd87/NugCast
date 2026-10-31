@@ -154,6 +154,8 @@ globals = {
     "UnitIsEnemy",
     "NugCast",
     "PlayerCastingBarFrame",
+    "TargetFrameSpellBar",
+    "FocusFrameSpellBar",
     "UnitCastingDuration",
     "UnitEmpoweredChannelDuration",
     "UnitChannelDuration",

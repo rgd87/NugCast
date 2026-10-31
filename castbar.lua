@@ -186,6 +186,11 @@ function NugCast:PLAYER_LOGIN()
         NugCast:AddMore(target)
         NugCastTarget = target
 
+        if TargetFrameSpellBar then
+            TargetFrameSpellBar:UnregisterAllEvents()
+            TargetFrameSpellBar:Hide()
+        end
+
         local target_anchor = self:CreateAnchor(self.db.profile.anchors["target"])
         target:SetPoint("TOPLEFT",target_anchor,"BOTTOMRIGHT",0,0)
         anchors["target"] = target_anchor
@@ -196,6 +201,11 @@ function NugCast:PLAYER_LOGIN()
         focus:RegisterEvent("PLAYER_FOCUS_CHANGED")
         NugCast:AddMore(focus)
         NugCastFocus = focus
+
+        if FocusFrameSpellBar then
+            FocusFrameSpellBar:UnregisterAllEvents()
+            FocusFrameSpellBar:Hide()
+        end
 
         local focus_anchor = self:CreateAnchor(self.db.profile.anchors["focus"])
         focus:SetPoint("TOPLEFT",focus_anchor,"BOTTOMRIGHT",0,0)
