@@ -230,7 +230,7 @@ function NugCast:PLAYER_LOGIN()
     SLASH_NUGCAST1= "/nugcast"
     SlashCmdList["NUGCAST"] = NugCast.SlashCmd
 
-    local f = CreateFrame('Frame', nil, InterfaceOptionsFrame)
+    local f = CreateFrame('Frame', nil, SettingsPanel or InterfaceOptionsFrame)
     f:SetScript('OnShow', function(self)
         self:SetScript('OnShow', nil)
 
