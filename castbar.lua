@@ -310,6 +310,11 @@ NugCast.UNIT_SPELLCAST_CHANNEL_UPDATE = NugCast.CHANNEL_START
 NugCast.UNIT_SPELLCAST_EMPOWER_UPDATE = NugCast.CHANNEL_START
 
 
+
+function NugCast.CAST_STOP_INSTANT(self, event, unit)
+    if unit ~= self.unit then return end
+    self:Hide()
+end
 function NugCast.CAST_STOP(self, event, unit, castGUID, spellID, ...)
     if unit ~= self.unit then return end
     --[[
@@ -379,15 +384,21 @@ end
 
 
 function NugCast.PLAYER_TARGET_CHANGED(self,event)
-    if UnitCastingInfo("target") then return NugCast.UNIT_SPELLCAST_START(self,event,"target") end
-    if UnitChannelInfo("target") then return NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,"target") end
-    NugCast.UNIT_SPELLCAST_STOP(self,event,"target")
+    if UnitExists("target") then
+        if UnitCastingInfo("target") then return NugCast.UNIT_SPELLCAST_START(self,event,"target") end
+        if UnitChannelInfo("target") then return NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,"target") end
+    else
+        NugCast.CAST_STOP_INSTANT(self, event, "target")
+    end
 end
 
 function NugCast.PLAYER_FOCUS_CHANGED(self,event)
-    if UnitCastingInfo("focus") then return NugCast.UNIT_SPELLCAST_START(self,event,"focus") end
-    if UnitChannelInfo("focus") then return NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,"focus") end
-    NugCast.UNIT_SPELLCAST_STOP(self,event,"focus")
+    if UnitExists("target") then
+        if UnitCastingInfo("focus") then return NugCast.UNIT_SPELLCAST_START(self,event,"focus") end
+        if UnitChannelInfo("focus") then return NugCast.UNIT_SPELLCAST_CHANNEL_START(self,event,"focus") end
+    else
+        NugCast.CAST_STOP_INSTANT(self, event, "focus")
+    end
 end
 
 function NugCast.UNIT_SPELLCAST_SUCCEEDED(self, event, unit, castGUID, spellID, castID)
