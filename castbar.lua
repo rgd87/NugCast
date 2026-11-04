@@ -211,6 +211,14 @@ function NugCast:PLAYER_LOGIN()
         focus:SetPoint("TOPLEFT",focus_anchor,"BOTTOMRIGHT",0,0)
         anchors["focus"] = focus_anchor
     end
+
+
+    hooksecurefunc(EditModeManagerFrame, "EnterEditMode", function(self)
+        NugCast:EDIT_MODE_ENTER()
+    end)
+    hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function(self)
+        NugCast:EDIT_MODE_EXIT()
+    end)
     -- if oUF_Focus then focus:SetPoint("TOPRIGHT",oUF_Focus,"BOTTOMRIGHT", 0,-5)
     -- else focus:SetPoint("CENTER",UIParent,"CENTER", 0,300) end
 
@@ -1050,7 +1058,38 @@ end
 
 
 
+function NugCast:EDIT_MODE_ENTER(event)
+    for unit, anchor in pairs(anchors) do
+        anchor:Show()
+    end
+    local duration = C_DurationUtil.CreateDuration()
 
+    local now = GetTime()
+    duration:SetTimeFromStart(now, 20)
+
+    NugCastPlayer:UpdateCastingInfo("Player","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
+    if NugCastTarget then
+        NugCastTarget:UpdateCastingInfo("Target","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
+    end
+    if NugCastFocus then
+        NugCastFocus:UpdateCastingInfo("Focus","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
+    end
+end
+function NugCast:EDIT_MODE_EXIT(event)
+    for unit, anchor in pairs(anchors) do
+        anchor:Hide()
+    end
+    NugCastPlayer:Hide()
+    if NugCastTarget then NugCastTarget:Hide() end
+    if NugCastFocus then NugCastFocus:Hide() end
+    for _, castbar in ipairs(npCastbars) do
+        castbar:Deactivate()
+        castbar:Hide()
+    end
+    if NugCastPlayerNameplateHeader then
+        NugCastPlayerNameplateHeader:Arrange()
+    end
+end
 
 
 
@@ -1121,47 +1160,10 @@ NugCast.Commands = {
         end
     end,
     ["unlock"] = function()
-        for unit, anchor in pairs(anchors) do
-            anchor:Show()
-        end
-        local duration = C_DurationUtil.CreateDuration()
-
-        local now = GetTime()
-        duration:SetTimeFromStart(now, 20)
-
-        NugCastPlayer:UpdateCastingInfo("Player","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
-        if NugCastTarget then
-            NugCastTarget:UpdateCastingInfo("Target","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
-        end
-        if NugCastFocus then
-            NugCastFocus:UpdateCastingInfo("Focus","Interface\\Icons\\inv_misc_questionmark",now, duration, 1, true)
-        end
-        --[[
-        for i=1, 3 do
-            local castbar = NugCast.FindFreeCastbar()
-            if not castbar then break end
-            castbar.unit = "nameplate"..i
-            castbar:UpdateCastingInfo("Nameplate"..i,"Interface\\Icons\\inv_misc_questionmark",now - 15000, now + 15000, 1, true)
-        end
-        if NugCastPlayerNameplateHeader then
-            NugCastPlayerNameplateHeader:Arrange()
-        end
-        ]]
+        NugCast:EDIT_MODE_ENTER()
     end,
     ["lock"] = function()
-        for unit, anchor in pairs(anchors) do
-            anchor:Hide()
-        end
-        NugCastPlayer:Hide()
-        if NugCastTarget then NugCastTarget:Hide() end
-        if NugCastFocus then NugCastFocus:Hide() end
-        for _, castbar in ipairs(npCastbars) do
-            castbar:Deactivate()
-            castbar:Hide()
-        end
-        if NugCastPlayerNameplateHeader then
-            NugCastPlayerNameplateHeader:Arrange()
-        end
+        NugCast:EDIT_MODE_EXIT()
     end,
     ["nameplatebars"] = function()
         NugCast.db.global.nameplateCastbars = not NugCast.db.global.nameplateCastbars

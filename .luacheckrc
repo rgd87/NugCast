@@ -167,7 +167,8 @@ globals = {
     "Settings",
     "InCombatLockdown",
     "C_DurationUtil",
-
+    "EditModeManagerFrame",
+    "SettingsPanel",
     "GetUnitEmpowerStageDuration",
     "GetUnitEmpowerHoldAtMaxTime",
 }
